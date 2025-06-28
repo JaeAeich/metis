@@ -1,0 +1,22 @@
+---
+name: 📦 Dependency Issue
+description: Report dependency conflicts or version issues
+title: "[Deps 📦]: "
+labels: ["dependencies"]
+body:
+  - type: textarea
+    id: conflict
+    attributes:
+      label: Conflict Description
+      description: Describe the dependency conflict
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Please paste the contents of your `go.mod` file.
+      render: go
+    validations:
+      required: true
+...

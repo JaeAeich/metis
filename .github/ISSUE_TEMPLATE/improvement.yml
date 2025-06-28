@@ -1,0 +1,35 @@
+---
+name: "💡 Improvement"
+description: "Suggest an improvement for an existing feature"
+labels: [enhancement]
+body:
+  - type: textarea
+    id: "description"
+    attributes:
+      label: "Description"
+      description: "A clear and concise description of the improvement you are proposing"
+    validations:
+      required: true
+
+  - type: textarea
+    id: "related-to"
+    attributes:
+      label: "Related Issues/PRs"
+      description: "Is there a specific issue or pull request that this improvement is related to?"
+
+  - type: dropdown
+    id: "area"
+    attributes:
+      label: "Area of Improvement"
+      description: "Which part of the project will this improvement impact?"
+      multiple: true
+      options:
+        - API
+        - Core
+        - CLI
+        - CI/CD
+        - Documentation
+        - Other
+    validations:
+      required: true
+...

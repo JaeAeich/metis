@@ -1,0 +1,16 @@
+---
+# https://yamllint.readthedocs.io/en/stable/configuration.html#default-configuration
+extends: default
+
+rules:
+  truthy:
+    ignore:
+      - .github/**/*.yaml
+  document-start:
+    level: error
+  document-end:
+    level: error
+  line-length:
+    ignore:
+      - spec/3a832ab.wes.yaml
+...
