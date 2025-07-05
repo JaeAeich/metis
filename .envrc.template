@@ -1,3 +1,15 @@
+# Go
 export GOPATH=$(pwd)/.gopath
 export GOBIN=$(pwd)/bin
 export PATH=$GOBIN:$PATH
+
+# Metis common
+export METIS_ENVIRONMENT="dev"
+export METIS_LOG_LEVEL="info"
+
+# Metis API
+export METIS_API_SERVER_PORT="8080"
+export METIS_API_SWAGGER_BASE_PATH="/"
+export METIS_API_SWAGGER_PATH="/ui"
+
+# Metel

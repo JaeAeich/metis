@@ -1,5 +1,5 @@
 ---
-version: '2'
+version: "2"
 
 run:
   timeout: 10m
@@ -17,6 +17,7 @@ linters:
     # Code quality & style
     - revive # configurable linter for style & readability
     - gocritic # bug, performance, style improvements
+    - godot # check that comments are sentences
     - whitespace # whitespace issues
     - misspell # spelling mistakes
 
@@ -28,6 +29,8 @@ linters:
     - nilerr # nil error returns
     - errorlint # error wrapping issues
     - contextcheck # context usage
+    - noctx # find sending context.Background() or context.TODO()
+    - makezero # finds slice declarations with non-zero length and zero capacity
 
     # Complexity & maintainability
     - gocyclo # cyclomatic complexity
@@ -39,6 +42,8 @@ linters:
     - prealloc # slice preallocation
     - unconvert # unnecessary conversions
     - copyloopvar # loop variable capture (Go 1.22+)
+    - wastedassign # finds wasted assignments
+    - usestdlibvars # finds where standard library variables can be used
 
     # Error handling & types
     - err113 # error handling checks
@@ -58,25 +63,6 @@ linters:
     - nolintlint # nolint directive usage
     - predeclared # shadowing predeclared identifiers
 
-  disable:
-    # Overly strict or noisy linters
-    - exhaustruct # too strict for struct initialization
-    - gochecknoglobals # globals can be acceptable
-    - godox # TODO/FIXME comments are useful
-    - goconst # too aggressive on constants
-    - mnd # magic numbers can be context-dependent
-    - nlreturn # conflicts with other formatting
-    - wsl # whitespace rules can be too strict
-    - lll # line length handled by formatter
-    - tagalign # struct tag alignment can be too strict
-    - varnamelen # variable length can be context-dependent
-    - gomoddirectives # go.mod directives can be necessary
-    - testableexamples # not always applicable
-    - maintidx # maintainability index can be subjective
-    - cyclop # use gocyclo instead
-    - depguard # can be overly restrictive for smaller projects
-    - importas # import aliases can be overly restrictive
-
   settings:
     errcheck:
       check-type-assertions: true
@@ -84,12 +70,9 @@ linters:
 
     govet:
       enable-all: true
-      disable:
-        - fieldalignment # can be too strict
-        - shadow # can be overly pedantic
 
     staticcheck:
-      checks: ['all']
+      checks: ["all"]
 
     gosec:
       severity: medium
@@ -160,7 +143,7 @@ linters:
 
 formatters:
   enable:
-    - gofmt # standard Go formatting
+    - gofumpt # stricter gofmt
     - goimports # import formatting and sorting
     - gci # import grouping and organization
 

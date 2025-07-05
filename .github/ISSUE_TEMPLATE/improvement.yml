@@ -7,7 +7,8 @@ body:
     id: "description"
     attributes:
       label: "Description"
-      description: "A clear and concise description of the improvement you are proposing"
+      description: "A clear and concise description of the improvement you \
+        are proposing"
     validations:
       required: true
 
@@ -15,7 +16,8 @@ body:
     id: "related-to"
     attributes:
       label: "Related Issues/PRs"
-      description: "Is there a specific issue or pull request that this improvement is related to?"
+      description: "Is there a specific issue or pull request that this \
+        improvement is related to?"
 
   - type: dropdown
     id: "area"

@@ -76,7 +76,14 @@ o: oapi
 # ==============================================================================
 .PHONY: precommit-check pc
 precommit-check:
-	@echo "\nRunning pre-commit checks +++++++++++++++++++++++++++++++++++++++++++++++++++++\n"
+	@echo "\nRunning pre-commit checks..."
 	@pre-commit run --all-files
 
 pc: precommit-check
+
+.PHONY: format-lint fl
+format-lint:
+	@echo "\nRunning linter and formatter using golangci-lint..."
+	@golangci-lint run --fix ./...
+
+fl: format-lint

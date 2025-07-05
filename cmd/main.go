@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
+
+	"github.com/jaeaeich/metis/internal/config"
 )
 
 func main() {
@@ -13,8 +16,14 @@ func main() {
 
 	switch os.Args[1] {
 	case "api":
-		handleApiCmd()
+		if err := config.LoadAPIConfig(); err != nil {
+			log.Fatalf("failed to load API configuration: %v", err)
+		}
+		handleAPICmd()
 	case "metel":
+		if err := config.LoadMetelConfig(); err != nil {
+			log.Fatalf("failed to load Metel configuration: %v", err)
+		}
 		handleMetelCmd()
 	default:
 		fmt.Println("expected 'api' or 'metel' subcommands")
