@@ -1,7 +1,11 @@
+---
 openapi: 3.0.0
 info:
-  title: Workflow Execution Service
-  contact: {}
+  title: Metis - Workflow Execution Service
+  contact:
+    name: Javed Habib
+    email: jh4official@gmail.com
+    url: https://github.com/jaeaeich
   version: '1.1.0'
   x-logo:
     url: 'https://www.ga4gh.org/wp-content/themes/ga4gh-theme/gfx/GA-logo-horizontal-tag-RGB.svg'
@@ -18,121 +22,6 @@ info:
     + can pass parameters to that workflow (e.g. input files, cmdline arguments)
     + can get information about running workflows (e.g. status, errors, output file locations)
     + can cancel a running workflow
-servers:
-  - url: https://{defaultHost}/{basePath}/{apiVersion}
-    variables:
-      defaultHost:
-        default: www.example.com
-      basePath:
-        default: ga4gh/wes
-      apiVersion:
-        default: v1
-tags:
-  - name: Service Info
-    description: Get information about the workflow execution service
-  - name: Workflow Runs
-    description: Submit and monitor workflows in a WES environment
-  - name: Introduction
-    description: |
-      This document describes the WES API and provides details on the specific endpoints, request formats, and response.  It is intended to provide key information for developers of WES-compatible services as well as clients that will call these WES services.
-
-      Use cases include:
-
-      + "Bring your code to the data": a researcher who has built their own custom analysis can submit it to run on a dataset owned by an external organization, instead of having to make a copy of the data
-      + Best-practices pipelines: a researcher who maintains their own controlled data environment can find useful workflows in a shared directory (e.g. Dockstore.org), and run them over their data
-
-      ## Standards
-
-      The WES API specification is written in OpenAPI and embodies a RESTful service philosophy. It uses JSON in requests and responses and standard HTTP/HTTPS for information transport.
-  - name: Authorization & Authentication
-    description: >
-      Users must supply credentials that establish their identity and authorization in order to use a WES endpoint. We recommend that WES implementations use an OAuth2 [**bearer token**](https://oauth.net/2/bearer-tokens/), although they can choose other mechanisms if appropriate. WES callers can use the `auth_instructions_url` from the [**`service-info` endpoint**](https://ga4gh.github.io/workflow-execution-service-schemas/#/WorkflowExecutionService/GetServiceInfo) to learn how to obtain and use a bearer token for a particular implementation.
-
-      The WES implementation is responsible for checking that a user is authorized to submit workflow run requests. The particular authorization policy is up to the WES implementer.
-
-      Systems like WES need to also address the ability to pass credentials with jobs for input and output access.  In the current version of WES, the passing of credentials to authenticate and authorize access to inputs and outputs, as well as mandates about necessary file transfer protocols to support, are out of scope.  However, parallel work on the Data Object Service is addressing ways to pass around access credentials with data object references, opening up the possibility that a future version of WES will provide concrete mechanisms for workflow runs to access data using credentials different than those used for WES.  This is a work in progress and support of DOS in WES will be added in a future release of WES.
-  - name: serviceinfo_model
-    x-displayName: ServiceInfo
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/ServiceInfo" />
-  - name: runlistresponse_model
-    x-displayName: RunListResponse
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/RunListResponse" />
-  - name: runid_model
-    x-displayName: RunId
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/RunId" />
-  - name: state_model
-    x-displayName: State
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/State" />
-  - name: runstatus_model
-    x-displayName: RunStatus
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/RunStatus" />
-  - name: runsummary_model
-    x-displayName: RunSummary
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/RunSummary" />
-  - name: runrequest_model
-    x-displayName: RunRequest
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/RunRequest" />
-  - name: runlog_model
-    x-displayName: RunLog
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/RunLog" />
-  - name: log_model
-    x-displayName: Log
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/Log" />
-  - name: tasklog_model
-    x-displayName: TaskLog
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/TaskLog" />
-  - name: tasklistresponse_model
-    x-displayName: TaskListResponse
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/TaskListResponse" />
-  - name: defaultworkflowengineparameter_model
-    x-displayName: DefaultWorkflowEngineParameter
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/DefaultWorkflowEngineParameter" />
-  - name: workflowtypeversion_model
-    x-displayName: WorkflowTypeVersion
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/WorkflowTypeVersion" />
-  - name: workflowengineversion_model
-    x-displayName: WorkflowEngineVersion
-    description: |
-      <SchemaDefinition schemaRef="#/components/schemas/WorkflowEngineVersion" />
-x-tagGroups:
-  - name: Overview
-    tags:
-      - Introduction
-      - Authorization & Authentication
-  - name: Operations
-    tags:
-      - Service Info
-      - Workflow Runs
-  - name: Models
-    tags:
-      - serviceinfo_model
-      - runlistresponse_model
-      - runid_model
-      - state_model
-      - runstatus_model
-      - runsummary_model
-      - runrequest_model
-      - runlog_model
-      - log_model
-      - task_model
-      - tasklog_model
-      - tasklistresponse_model
-      - defaultworkflowengineparameter_model
-      - workflowtypeversion_model
-      - workflowengineversion_model
 paths:
   /service-info:
     get:
@@ -599,73 +488,73 @@ paths:
 components:
   schemas:
     Service:
-          description: 'GA4GH service'
+      description: 'GA4GH service'
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - organization
+        - version
+      properties:
+        id:
+          type: string
+          description: 'Unique ID of this service. Reverse domain name notation is recommended, though not required. The identifier should attempt to be globally unique so it can be used in downstream aggregator services e.g. Service Registry.'
+          example: 'org.ga4gh.myservice'
+        name:
+          type: string
+          description: 'Name of this service. Should be human readable.'
+          example: 'My project'
+        type:
+          $ref: '#/components/schemas/ServiceType'
+        description:
+          type: string
+          description: 'Description of the service. Should be human readable and provide information about the service.'
+          example: 'This service provides...'
+        organization:
           type: object
+          description: 'Organization providing the service'
           required:
-            - id
             - name
-            - type
-            - organization
-            - version
+            - url
           properties:
-            id:
-              type: string
-              description: 'Unique ID of this service. Reverse domain name notation is recommended, though not required. The identifier should attempt to be globally unique so it can be used in downstream aggregator services e.g. Service Registry.'
-              example: 'org.ga4gh.myservice'
             name:
               type: string
-              description: 'Name of this service. Should be human readable.'
-              example: 'My project'
-            type:
-              $ref: '#/components/schemas/ServiceType'
-            description:
-              type: string
-              description: 'Description of the service. Should be human readable and provide information about the service.'
-              example: 'This service provides...'
-            organization:
-              type: object
-              description: 'Organization providing the service'
-              required:
-                - name
-                - url
-              properties:
-                name:
-                  type: string
-                  description: 'Name of the organization responsible for the service'
-                  example: 'My organization'
-                url:
-                  type: string
-                  format: uri
-                  description: 'URL of the website of the organization (RFC 3986 format)'
-                  example: 'https://example.com'
-            contactUrl:
+              description: 'Name of the organization responsible for the service'
+              example: 'My organization'
+            url:
               type: string
               format: uri
-              description: 'URL of the contact for the provider of this service, e.g. a link to a contact form (RFC 3986 format), or an email (RFC 2368 format).'
-              example: 'mailto:support@example.com'
-            documentationUrl:
-              type: string
-              format: uri
-              description: 'URL of the documentation of this service (RFC 3986 format). This should help someone learn how to use your service, including any specifics required to access data, e.g. authentication.'
-              example: 'https://docs.myservice.example.com'
-            createdAt:
-              type: string
-              format: date-time
-              description: 'Timestamp describing when the service was first deployed and available (RFC 3339 format)'
-              example: '2019-06-04T12:58:19Z'
-            updatedAt:
-              type: string
-              format: date-time
-              description: 'Timestamp describing when the service was last updated (RFC 3339 format)'
-              example: '2019-06-04T12:58:19Z'
-            environment:
-              type: string
-              description: 'Environment the service is running in. Use this to distinguish between production, development and testing/staging deployments. Suggested values are prod, test, dev, staging. However this is advised and not enforced.'
-              example: 'test'
-            version:
-              type: string
-              description: 'Version of the service being described. Semantic versioning is recommended, but other identifiers, such as dates or commit hashes, are also allowed. The version should be changed whenever the service is updated.'
-              example: '1.0.0'
+              description: 'URL of the website of the organization (RFC 3986 format)'
+              example: 'https://example.com'
+        contactUrl:
+          type: string
+          format: uri
+          description: 'URL of the contact for the provider of this service, e.g. a link to a contact form (RFC 3986 format), or an email (RFC 2368 format).'
+          example: 'mailto:support@example.com'
+        documentationUrl:
+          type: string
+          format: uri
+          description: 'URL of the documentation of this service (RFC 3986 format). This should help someone learn how to use your service, including any specifics required to access data, e.g. authentication.'
+          example: 'https://docs.myservice.example.com'
+        createdAt:
+          type: string
+          format: date-time
+          description: 'Timestamp describing when the service was first deployed and available (RFC 3339 format)'
+          example: '2019-06-04T12:58:19Z'
+        updatedAt:
+          type: string
+          format: date-time
+          description: 'Timestamp describing when the service was last updated (RFC 3339 format)'
+          example: '2019-06-04T12:58:19Z'
+        environment:
+          type: string
+          description: 'Environment the service is running in. Use this to distinguish between production, development and testing/staging deployments. Suggested values are prod, test, dev, staging. However this is advised and not enforced.'
+          example: 'test'
+        version:
+          type: string
+          description: 'Version of the service being described. Semantic versioning is recommended, but other identifiers, such as dates or commit hashes, are also allowed. The version should be changed whenever the service is updated.'
+          example: '1.0.0'
     ServiceType:
       description: 'Type of a GA4GH service'
       type: object
@@ -1063,3 +952,4 @@ components:
           description: The integer representing the HTTP status code (e.g. 200, 404).
           format: int32
       description: An object that can optionally include information about the error.
+...
