@@ -1,0 +1,24 @@
+root = "."
+tmp_dir = "./bin/tmp"
+
+[build]
+cmd = "go build -o ./bin/tmp/main ./cmd"
+bin = "tmp/main"
+full_bin = "./bin/tmp/main api"
+include_ext = ["go", "yaml"]
+exclude_dir = ["tmp"]
+delay = 1000
+stop_on_error = true
+log = "air_errors.log"
+
+[log]
+time = false
+
+[color]
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+clean_on_exit = true

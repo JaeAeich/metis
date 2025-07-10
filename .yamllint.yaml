@@ -12,5 +12,5 @@ rules:
     level: error
   line-length:
     ignore:
-      - spec/3a832ab.wes.yaml
+      - internal/api/spec/3a832ab.wes.yaml
 ...
