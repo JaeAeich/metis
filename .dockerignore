@@ -1,0 +1,9 @@
+# Ignore everything by default
+**
+
+# Allow files and directories necessary for the build
+!/go.mod
+!/go.sum
+!/cmd/
+!/internal/
+!/public/
