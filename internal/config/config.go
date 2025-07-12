@@ -12,6 +12,7 @@ var Cfg *Config
 // Config holds the application's configuration.
 type Config struct {
 	Metel MetelConfig `mapstructure:"METEL"`
+	Log   LogConfig   `mapstructure:"LOG"`
 	API   APIConfig   `mapstructure:"API"`
 }
 
