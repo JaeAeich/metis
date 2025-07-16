@@ -33,6 +33,9 @@ help:
 	@echo "  \033[1m\033[35mbia\033[0m: \033[36mBuild the alpine Docker image.\033[0m"
 	@echo "  \033[1m\033[35mbid\033[0m: \033[36mBuild the dev Docker image.\033[0m\n"
 
+	@echo "Kubernetes --------------------------------------------------------------------"
+	@echo "  \033[1m\033[35mcreate-plugin-configmap\033[0m \033[37m(cpc)\033[0m: \033[36mCreates/updates the plugin configmap in Kubernetes.\033[0m\n"
+
 
 # ==============================================================================
 # DEVELOPMENT
@@ -145,3 +148,15 @@ format-lint:
 	@golangci-lint run --fix ./...
 
 fl: format-lint
+
+
+# ==============================================================================
+# KUBERNETES
+# ==============================================================================
+.PHONY: create-plugin-configmap
+create-plugin-configmap:
+	@echo "Creating plugin configmap..."
+	@kubectl create configmap metis-plugin-configmap --from-file=$(HOME)/.metis/plugins.yaml -n metis --dry-run=client -o yaml | kubectl apply -f -
+	@echo "Plugin configmap created successfully!"
+
+cpc: create-plugin-configmap

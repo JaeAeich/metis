@@ -2,18 +2,19 @@ package config
 
 // K8sConfig holds the Kubernetes configuration.
 type K8sConfig struct {
-	ImagePullPolicy        string `mapstructure:"IMAGE_PULL_POLICY"`
-	MetelPrefix            string `mapstructure:"METEL_PREFIX"`
+	DefaultPVCSize         string `mapstructure:"DEFAULT_PVC_SIZE"`
+	ConfigPath             string `mapstructure:"CONFIG_PATH"`
 	PVCAccessMode          string `mapstructure:"PVC_ACCESS_MODE"`
 	PVCStorageClass        string `mapstructure:"PVC_STORAGE_CLASS"`
 	CommonPVCVolumeName    string `mapstructure:"COMMON_PVC_VOLUME_NAME"`
 	RestartPolicy          string `mapstructure:"RESTART_POLICY"`
-	DefaultPVCSize         string `mapstructure:"DEFAULT_PVC_SIZE"`
-	PVCMountPath           string `mapstructure:"PVC_MOUNT_PATH"`
+	MetelPrefix            string `mapstructure:"METEL_PREFIX"`
 	Namespace              string `mapstructure:"NAMESPACE"`
+	ImagePullPolicy        string `mapstructure:"IMAGE_PULL_POLICY"`
 	PVCPrefix              string `mapstructure:"PVC_PREFIX"`
-	ConfigPath             string `mapstructure:"CONFIG_PATH"`
+	PVCMountPath           string `mapstructure:"PVC_MOUNT_PATH"`
 	ImageName              string `mapstructure:"IMAGE_NAME"`
+	PluginConfigMapName    string `mapstructure:"PLUGIN_CONFIG_MAP_NAME"`
 	JobTTL                 int    `mapstructure:"JOB_TTL"`
 	SecurityContextEnabled bool   `mapstructure:"SECURITY_CONTEXT_ENABLED"`
 }

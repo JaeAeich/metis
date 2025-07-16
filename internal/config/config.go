@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -15,13 +16,22 @@ var (
 	Cfg *Config
 )
 
+// PluginConfig holds the configuration for a single plugin.
+type PluginConfig struct {
+	WorkflowEngineVersion string `mapstructure:"workflow_engine_version"`
+	WorkflowType          string `mapstructure:"workflow_type"`
+	WorkflowTypeVersion   string `mapstructure:"workflow_type_version"`
+	PluginURL             string `mapstructure:"plugin_url"`
+}
+
 // Config holds the application's configuration.
 type Config struct {
-	Metel MetelConfig `mapstructure:"METEL"`
-	Log   LogConfig   `mapstructure:"LOG"`
-	Mongo MongoConfig `mapstructure:"MONGO"`
-	API   APIConfig   `mapstructure:"API"`
-	K8s   K8sConfig   `mapstructure:"K8S"`
+	Metel   MetelConfig    `mapstructure:"METEL"`
+	Log     LogConfig      `mapstructure:"LOG"`
+	Mongo   MongoConfig    `mapstructure:"MONGO"`
+	API     APIConfig      `mapstructure:"API"`
+	K8s     K8sConfig      `mapstructure:"K8S"`
+	Plugins []PluginConfig `mapstructure:"PLUGINS"`
 }
 
 // LoadCommonConfig loads the common configuration.
@@ -29,6 +39,18 @@ func LoadCommonConfig() error {
 	viper.SetEnvPrefix("METIS")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
+
+	// Load plugins config file
+	viper.SetConfigName("plugins")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("$HOME/.metis")
+	if err := viper.ReadInConfig(); err != nil {
+		var configFileNotFoundError viper.ConfigFileNotFoundError
+		if errors.As(err, &configFileNotFoundError) {
+			// Config file was found but another error was produced
+			return err
+		}
+	}
 
 	viper.SetDefault("ENVIRONMENT", "dev")
 	viper.SetDefault("LOG.LEVEL", "info")
@@ -53,6 +75,7 @@ func LoadCommonConfig() error {
 	viper.SetDefault("K8S.PVC_PREFIX", "pvc")
 	viper.SetDefault("K8S.METEL_PREFIX", "metel")
 	viper.SetDefault("K8S.IMAGE_NAME", "jaeaeich/metis:latest")
+	viper.SetDefault("K8S.PLUGIN_CONFIG_MAP_NAME", "metis-plugin-configmap")
 
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {

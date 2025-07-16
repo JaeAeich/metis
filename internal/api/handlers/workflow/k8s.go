@@ -130,7 +130,25 @@ func CreateMetelJob(runID string, runRequest *api.RunRequest, pvcName string, at
 			}(),
 			Template: v1.PodTemplateSpec{
 				Spec: v1.PodSpec{
-					Volumes:        buildVolumes(pvcName, attachmentConfigMaps),
+					Volumes: append(
+						buildVolumes(pvcName, attachmentConfigMaps),
+						v1.Volume{
+							Name: "plugin-config",
+							VolumeSource: v1.VolumeSource{
+								ConfigMap: &v1.ConfigMapVolumeSource{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: config.Cfg.K8s.PluginConfigMapName,
+									},
+									Items: []v1.KeyToPath{
+										{
+											Key:  "plugins.yaml",
+											Path: "plugins.yaml",
+										},
+									},
+								},
+							},
+						},
+					),
 					InitContainers: buildInitContainers(attachmentConfigMaps),
 					Containers: []v1.Container{
 						{
@@ -142,6 +160,10 @@ func CreateMetelJob(runID string, runRequest *api.RunRequest, pvcName string, at
 								{
 									Name:      config.Cfg.K8s.CommonPVCVolumeName,
 									MountPath: config.Cfg.K8s.PVCMountPath,
+								},
+								{
+									Name:      "plugin-config",
+									MountPath: "/root/.metis",
 								},
 							},
 						},

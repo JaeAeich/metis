@@ -30,6 +30,7 @@ export METIS_K8S_DEFAULT_PVC_SIZE="100Mi"
 export METIS_K8S_PVC_PREFIX="pvc"
 export METIS_K8S_METEL_PREFIX="metel"
 export METIS_K8S_IMAGE_NAME="jaeaeich/metis:latest"
+export METIS_K8S_
 
 # Metis API
 export METIS_API_SERVER_PORT="8080"
