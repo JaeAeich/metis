@@ -19,9 +19,14 @@ func Start() {
 	fiberConfig := &fiber.Config{}
 	app := fiber.New(*fiberConfig)
 
+	// Health check
+	app.Get("/healthz", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
 	// Swagger UI
 	swaggerCfg := swagger.Config{
-		BasePath:    config.Cfg.API.Swagger.BasePath,
+		BasePath:    config.Cfg.API.Server.BasePath,
 		FileContent: spec.Spec,
 		Path:        config.Cfg.API.Swagger.Path,
 		Title:       config.Cfg.API.Swagger.Title,

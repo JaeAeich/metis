@@ -3,15 +3,15 @@ package config
 
 // ServerConfig holds the server configuration.
 type ServerConfig struct {
-	Host string `mapstructure:"HOST"`
-	Port int    `mapstructure:"PORT"`
+	Host     string `mapstructure:"HOST"`
+	BasePath string `mapstructure:"BASE_PATH"`
+	Port     int    `mapstructure:"PORT"`
 }
 
 // SwaggerConfig holds the Swagger configuration.
 type SwaggerConfig struct {
-	BasePath string `mapstructure:"BASE_PATH"`
-	Path     string `mapstructure:"PATH"`
-	Title    string `mapstructure:"TITLE"`
+	Path  string `mapstructure:"PATH"`
+	Title string `mapstructure:"TITLE"`
 }
 
 // APIConfig holds the configuration for the API server.

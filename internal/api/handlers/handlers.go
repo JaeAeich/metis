@@ -2,12 +2,16 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
 	api "github.com/jaeaeich/metis/internal/api/generated"
+	run "github.com/jaeaeich/metis/internal/api/handlers/workflow"
+	"github.com/jaeaeich/metis/internal/clients"
+	"github.com/jaeaeich/metis/internal/logger"
 )
 
 // Metis is our handler struct.
@@ -28,6 +32,7 @@ func (m *Metis) ListRuns(c *fiber.Ctx, params api.ListRunsParams) error {
 	var runItem api.RunListResponse_Runs_Item
 	err := runItem.FromRunStatus(runStatus)
 	if err != nil {
+		logger.L.Error("failed to convert run status to run item", "error", err)
 		return err
 	}
 
@@ -47,16 +52,95 @@ func (m *Metis) ListRuns(c *fiber.Ctx, params api.ListRunsParams) error {
 // RunWorkflow runs a workflow.
 func (m *Metis) RunWorkflow(c *fiber.Ctx) error {
 	runID := uuid.New().String()
+	logger.L.Info("starting workflow run", "run_id", runID)
+
+	runRequest, err := run.ParseRunRequest(c)
+	if err != nil {
+		logger.L.Error("failed to parse multipart form", "error", err)
+		statusCode := int32(fiber.StatusBadRequest)
+		errMsg := "Failed to parse multipart form"
+		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
+			Msg:        &errMsg,
+			StatusCode: &statusCode,
+		})
+	}
+	logger.L.Debug("parsed request", "run_request", runRequest)
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		logger.L.Error("failed to parse multipart form", "error", err)
+		statusCode := int32(fiber.StatusBadRequest)
+		errMsg := "Failed to parse multipart form"
+		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
+			Msg:        &errMsg,
+			StatusCode: &statusCode,
+		})
+	}
+
+	var attachmentConfigMaps []string
+	if attachments, ok := form.File["workflow_attachment"]; ok {
+		var attachmentNames []string
+		attachmentConfigMaps, attachmentNames, err = run.CreateAttachmentConfigMaps(runID, attachments)
+		if err != nil {
+			logger.L.Error("failed to create attachment config maps", "error", err)
+			statusCode := int32(fiber.StatusInternalServerError)
+			errMsg := "Failed to create attachment config maps"
+			return c.Status(fiber.StatusInternalServerError).JSON(api.ErrorResponse{
+				Msg:        &errMsg,
+				StatusCode: &statusCode,
+			})
+		}
+		logger.L.Debug("received and saved workflow attachments", "files", attachmentNames)
+	}
+
+	pvc, err := run.CreatePVCForRun(runID)
+	if err != nil {
+		logger.L.Error("failed to create pvc", "error", err)
+		statusCode := int32(fiber.StatusInternalServerError)
+		errMsg := fmt.Sprintf("failed to create pvc: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(api.ErrorResponse{
+			Msg:        &errMsg,
+			StatusCode: &statusCode,
+		})
+	}
+
+	job, err := run.CreateMetelJob(runID, runRequest, pvc.Name, attachmentConfigMaps)
+	if err != nil {
+		logger.L.Error("failed to create job", "error", err)
+		statusCode := int32(fiber.StatusInternalServerError)
+		errMsg := fmt.Sprintf("failed to create job: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(api.ErrorResponse{
+			Msg:        &errMsg,
+			StatusCode: &statusCode,
+		})
+	}
+	logger.L.Debug("created job", "job_name", job.Name, "job_uid", job.UID)
+
+	run.UpdateOwnerReferences(job, pvc.Name, attachmentConfigMaps)
+
+	if err := run.InsertRunLog(runID, runRequest); err != nil {
+		logger.L.Error("failed to insert run log", "error", err)
+		statusCode := int32(fiber.StatusInternalServerError)
+		errMsg := fmt.Sprintf("failed to insert run log: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(api.ErrorResponse{
+			Msg:        &errMsg,
+			StatusCode: &statusCode,
+		})
+	}
+
+	logger.L.Info("successfully started workflow run", "run_id", runID)
 	return c.Status(fiber.StatusOK).JSON(api.RunId{RunId: &runID})
 }
 
 // GetRunLog gets the log for a workflow run.
 func (m *Metis) GetRunLog(c *fiber.Ctx, runID string) error {
-	state := api.RUNNING
-	return c.JSON(api.RunLog{
-		RunId: &runID,
-		State: &state,
-	})
+	var runLog api.RunLog
+	err := clients.DB.Database("metis").Collection("workflows").FindOne(context.Background(), map[string]string{"run_id": runID}).Decode(&runLog)
+	if err != nil {
+		logger.L.Error("failed to get run log", "error", err, "run_id", runID)
+		return err
+	}
+	return c.JSON(runLog)
 }
 
 // CancelRun cancels a workflow run.

@@ -6,10 +6,35 @@ export PATH=$GOBIN:$PATH
 # Metis common
 export METIS_ENVIRONMENT="dev"
 export METIS_LOG_LEVEL="info"
+export METIS_LOG_FORMAT="text"
+
+# Mongo
+export METIS_MONGO_HOST="localhost"
+export METIS_MONGO_PORT="27017"
+export METIS_MONGO_USERNAME="mongo"
+export METIS_MONGO_PASSWORD="password"
+export METIS_MONGO_DATABASE="metis"
+export METIS_MONGO_WORKFLOW_COLLECTION="workflows"
+
+# K8s
+export METIS_K8S_CONFIG_PATH="$HOME/.kube/config"
+export METIS_K8S_NAMESPACE="metis"
+export METIS_K8S_PVC_ACCESS_MODE=""
+export METIS_K8S_PVC_STORAGE_CLASS=""
+export METIS_K8S_COMMON_PVC_VOLUME_NAME="workflow-pvc"
+export METIS_K8S_RESTART_POLICY="Never"
+export METIS_K8S_IMAGE_PULL_POLICY="IfNotPresent"
+export METIS_K8S_JOB_TTL="300"
+export METIS_K8S_SECURITY_CONTEXT_ENABLED="false"
+export METIS_K8S_DEFAULT_PVC_SIZE="100Mi"
+export METIS_K8S_PVC_PREFIX="pvc"
+export METIS_K8S_METEL_PREFIX="metel"
+export METIS_K8S_IMAGE_NAME="jaeaeich/metis:latest"
 
 # Metis API
 export METIS_API_SERVER_PORT="8080"
-export METIS_API_SWAGGER_BASE_PATH="/"
+export METIS_API_SERVER_BASE_PATH="/ga4gh/wes/v1"
 export METIS_API_SWAGGER_PATH="/ui"
+export METIS_API_SWAGGER_TITLE="Metis API"
 
 # Metel

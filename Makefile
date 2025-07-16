@@ -1,6 +1,13 @@
 .DEFAULT_GOAL := help
 
 # ==============================================================================
+# VARIABLES
+# ==============================================================================
+IMAGE_NAME := jaeaeich/metis
+VERSION ?= $(shell git describe --tags --always --dirty)
+VCS_REF ?= $(shell git rev-parse --short HEAD)
+
+# ==============================================================================
 # HELP
 # ==============================================================================
 .PHONY: help
@@ -18,7 +25,13 @@ help:
 	@echo "  \033[1m\033[35mtidy\033[0m \033[37m(t)\033[0m: \033[36mManages Go module dependencies.\033[0m\n"
 
 	@echo "Development -------------------------------------------------------------------"
-	@echo "  \033[1m\033[35mbuild\033[0m \033[37m(b)\033[0m: \033[36mBuild the Go application binary.\033[0m\n"
+	@echo "  \033[1m\033[35mbuild\033[0m \033[37m(b)\033[0m: \033[36mBuild the Go application binary.\033[0m"
+	@echo "  \033[1m\033[35mdev\033[0m \033[37m(d)\033[0m: \033[36mRun the application with hot-reload.\033[0m\n"
+
+	@echo "Docker ------------------------------------------------------------------------"
+	@echo "  \033[1m\033[35mbi\033[0m: \033[36mBuild the default distroless Docker image.\033[0m"
+	@echo "  \033[1m\033[35mbia\033[0m: \033[36mBuild the alpine Docker image.\033[0m"
+	@echo "  \033[1m\033[35mbid\033[0m: \033[36mBuild the dev Docker image.\033[0m\n"
 
 
 # ==============================================================================
@@ -30,6 +43,51 @@ build:
 
 b: build
 
+.PHONY: dev d
+dev:
+	go run -modfile=tools.mod github.com/air-verse/air
+
+d: dev
+
+
+# ==============================================================================
+# DOCKER
+# ==============================================================================
+.PHONY: bi
+bi:
+	@echo "Building distroless image..."
+	@docker build \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg VCS_REF=$(VCS_REF) \
+		--target distroless \
+		-t $(IMAGE_NAME):$(VERSION) \
+		-t $(IMAGE_NAME):latest \
+		-f deployment/images/Dockerfile .
+	@echo "Docker image name: $(IMAGE_NAME):$(VERSION), $(IMAGE_NAME):latest"
+
+.PHONY: bia
+bia:
+	@echo "Building alpine image..."
+	@docker build \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg VCS_REF=$(VCS_REF) \
+		--target alpine \
+		-t $(IMAGE_NAME):alpine-$(VERSION) \
+		-t $(IMAGE_NAME):alpine \
+		-f deployment/images/Dockerfile .
+	@echo "Docker image name: $(IMAGE_NAME):alpine-$(VERSION), $(IMAGE_NAME):alpine"
+
+.PHONY: bid
+bid:
+	@echo "Building dev image..."
+	@docker build \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg VCS_REF=$(VCS_REF) \
+		--target dev \
+		-t $(IMAGE_NAME):dev-$(VERSION) \
+		-t $(IMAGE_NAME):dev \
+		-f deployment/images/Dockerfile .
+	@echo "Docker image name: $(IMAGE_NAME):dev-$(VERSION), $(IMAGE_NAME):dev"
 
 # ==============================================================================
 # DEPENDENCIES
@@ -56,7 +114,7 @@ oapi:
 		-generate types \
 		-package api \
 		-o internal/api/generated/models.gen.go \
-		spec/3a832ab.wes.yaml
+		internal/api/spec/3a832ab.wes.yaml
 
 	@echo "  - Generating server (fiber, strict-server)..."
 	oapi-codegen \
@@ -64,7 +122,7 @@ oapi:
 		-generate fiber,strict-server \
 		-package api \
 		-o internal/api/generated/server.gen.go \
-		spec/3a832ab.wes.yaml
+		internal/api/spec/3a832ab.wes.yaml
 
 	@echo "API code generated successfully!"
 
