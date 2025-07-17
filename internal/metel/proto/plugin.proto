@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package metel.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/jaeaeich/metis/internal/metel/proto";
+
+// PluginExecution service defines RPCs for workflow execution.
+service PluginExecution {
+  // GetExecutionSpec provides the specification for executing a workflow.
+  rpc GetExecutionSpec(GetExecutionSpecRequest) returns (ExecutionSpec);
+}
+
+message StagingInfo {
+  // The full URL to the remote staging area.
+  // Example: s3://metis/workflows/wes_id
+  string staging_url = 1;
+
+  // The endpoint URL for the object store.
+  // This is useful for S3-compatible stores like MinIO.
+  string endpoint_url = 2;
+
+  // A map of parameters, including credentials, for accessing the object store.
+  map<string, string> parameters = 3;
+}
+
+message GetExecutionSpecRequest {
+  // The original WES request.
+  WesRequest wes_request = 1;
+
+  // The staging area information.
+  StagingInfo staging_info = 2;
+
+  // An optional argument which defines the entrypoint of the wf.
+  // If metis is able to assume the entrypoint or the primary descriptor
+  // then this value will be passed. Otherwise, it's the plugin's job to get the
+  // descriptor file from the wes request or assume that based on a
+  // standard or widely used practice, a default filename exists at the workDir
+  // (for example, nextflow will assume main.nf, snakemake will assume Snakefile).
+  // If the run fails, it's a user error. By assuming these files, the plugin can
+  // generate the command, e.g., dummy-engine run dummyfile.
+  // Example: file://./nesting/entrypoint.engine, file://entrypoint.engine
+  string primary_descriptor = 3;
+}
+
+message WesRequest {
+  string workflow_url = 1;
+  string workflow_type = 2;
+  string workflow_type_version = 3;
+  map<string, google.protobuf.Value> workflow_params = 4;
+  string workflow_engine = 5;
+  string workflow_engine_version = 6;
+  map<string, string> workflow_engine_parameters = 7;
+  map<string, string> tags = 8;
+}
+
+// ExecutionSpec contains the information needed to run the workflow.
+message ExecutionSpec {
+  // The container image to use for the workflow execution.
+  string image = 1;
+
+  // The command to run in the container.
+  // Here the plugin should consume the WES request
+  // and interpret what to run in the container where all
+  // all the workflow files are present and that is the workDir of the
+  // Pod.
+  repeated string command = 2;
+
+  // A map of file names to file content that should be mounted at the root
+  // of the execution environment. This file will be made available to the Pod
+  // at the root where.
+  map<string, string> root_mount_files = 3;
+
+  // A map of file names to file content that should be mounted in the project
+  // directory of the execution environment. This files will be made available
+  // at the project dir or where all the wf files are present and the
+  // command is ran.
+  map<string, string> project_mount_files = 4;
+
+  // A map of environment variables to be set in the workflow container.
+  map<string, string> environment = 5;
+}
