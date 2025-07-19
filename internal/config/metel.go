@@ -1,6 +1,15 @@
 package config
 
-// MetelConfig holds the configuration for the metel command.
+// StagingConfig holds the configuration for the remote staging area.
+type StagingConfig struct {
+	Parameters map[string]string `mapstructure:"PARAMETERS"`
+	Type       string            `mapstructure:"TYPE"`
+	Bucket     string            `mapstructure:"BUCKET"`
+	Prefix     string            `mapstructure:"PREFIX"`
+	URL        string            `mapstructure:"URL"`
+}
+
+// MetelConfig holds the configuration for the Metel service.
 type MetelConfig struct {
-	// Add metel-specific configuration here.
+	Staging StagingConfig `mapstructure:"STAGING"`
 }

@@ -30,7 +30,9 @@ export METIS_K8S_DEFAULT_PVC_SIZE="100Mi"
 export METIS_K8S_PVC_PREFIX="pvc"
 export METIS_K8S_METEL_PREFIX="metel"
 export METIS_K8S_IMAGE_NAME="jaeaeich/metis:latest"
-export METIS_K8S_
+export METIS_K8S_WE_PREFIX="workflow-execution"
+export METIS_K8S_PLUGIN_CONFIG_MAP_NAME="metis-plugin-configmap"
+export METIS_K8S_SERVICE_ACCOUNT_NAME="metis-service-account"
 
 # Metis API
 export METIS_API_SERVER_PORT="8080"
@@ -39,3 +41,11 @@ export METIS_API_SWAGGER_PATH="/ui"
 export METIS_API_SWAGGER_TITLE="Metis API"
 
 # Metel
+export METIS_METEL_STAGING_TYPE="s3"
+export METIS_METEL_STAGING_BUCKET="metis"
+export METIS_METEL_STAGING_PREFIX="workflows"
+export METIS_METEL_STAGING_URL=""
+# For map values like parameters, you can define them by exporting variables
+# with the key as a suffix. Viper will automatically collect them into a map.
+# Example for S3 staging parameters:
+# export METIS_METEL_STAGING_PARAMETERS_REGION="us-east-1"

@@ -16,22 +16,14 @@ var (
 	Cfg *Config
 )
 
-// PluginConfig holds the configuration for a single plugin.
-type PluginConfig struct {
-	WorkflowEngineVersion string `mapstructure:"workflow_engine_version"`
-	WorkflowType          string `mapstructure:"workflow_type"`
-	WorkflowTypeVersion   string `mapstructure:"workflow_type_version"`
-	PluginURL             string `mapstructure:"plugin_url"`
-}
-
 // Config holds the application's configuration.
 type Config struct {
 	Metel   MetelConfig    `mapstructure:"METEL"`
 	Log     LogConfig      `mapstructure:"LOG"`
 	Mongo   MongoConfig    `mapstructure:"MONGO"`
 	API     APIConfig      `mapstructure:"API"`
-	K8s     K8sConfig      `mapstructure:"K8S"`
 	Plugins []PluginConfig `mapstructure:"PLUGINS"`
+	K8s     K8sConfig      `mapstructure:"K8S"`
 }
 
 // LoadCommonConfig loads the common configuration.
@@ -74,9 +66,10 @@ func LoadCommonConfig() error {
 	viper.SetDefault("K8S.DEFAULT_PVC_SIZE", "100Mi")
 	viper.SetDefault("K8S.PVC_PREFIX", "pvc")
 	viper.SetDefault("K8S.METEL_PREFIX", "metel")
+	viper.SetDefault("K8S.WE_PREFIX", "workflow-execution")
 	viper.SetDefault("K8S.IMAGE_NAME", "jaeaeich/metis:latest")
 	viper.SetDefault("K8S.PLUGIN_CONFIG_MAP_NAME", "metis-plugin-configmap")
-
+	viper.SetDefault("K8S.SERVICE_ACCOUNT_NAME", "metis-service-account")
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
 		return err
@@ -89,6 +82,11 @@ func LoadCommonConfig() error {
 
 // LoadMetelConfig loads the Metel configuration.
 func LoadMetelConfig() error {
+	viper.SetDefault("METEL.STAGING.TYPE", "s3")
+	viper.SetDefault("METEL.STAGING.BUCKET", "metis")
+	viper.SetDefault("METEL.STAGING.PREFIX", "workflows")
+	viper.SetDefault("METEL.STAGING.URL", "")
+	viper.SetDefault("METEL.STAGING.PARAMETERS", map[string]string{})
 	return LoadCommonConfig()
 }
 
