@@ -16,7 +16,8 @@ help:
 	@echo "Available targets:\n"
 
 	@echo "Code Generation ---------------------------------------------------------------"
-	@echo "  \033[1m\033[35moapi\033[0m \033[37m(o)\033[0m: \033[36mGenerate API code from OpenAPI spec.\033[0m\n"
+	@echo "  \033[1m\033[35moapi\033[0m \033[37m(o)\033[0m: \033[36mGenerate API code from OpenAPI spec.\033[0m"
+	@echo "  \033[1m\033[35mgp\033[0m: \033[36mGenerate protobuf code.\033[0m\n"
 
 	@echo "Code Quality ------------------------------------------------------------------"
 	@echo "  \033[1m\033[35mprecommit-check\033[0m \033[37m(pc)\033[0m: \033[36mRun all pre-commit checks.\033[0m\n"
@@ -99,7 +100,8 @@ bid:
 tidy:
 	@echo "Tidying up..."
 	go mod tidy
-	go mod verify
+	go mod tidy -modfile=tools.mod
+	go mod verify -modfile=tools.mod
 	@echo "Tidying up completed!"
 
 t: tidy
@@ -130,6 +132,16 @@ oapi:
 	@echo "API code generated successfully!"
 
 o: oapi
+
+.PHONY: generate-proto gp
+generate-proto:
+	@echo "Generating protobuf code..."
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		internal/metel/proto/plugin.proto
+	@echo "Protobuf code generated successfully!"
+
+gp: generate-proto
 
 
 # ==============================================================================

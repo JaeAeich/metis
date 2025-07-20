@@ -8,6 +8,10 @@ import (
 	"os"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/structpb"
+
 	api "github.com/jaeaeich/metis/internal/api/generated"
 	"github.com/jaeaeich/metis/internal/config"
 	"github.com/jaeaeich/metis/internal/errors"
@@ -47,6 +51,7 @@ func handleMetelCmd() {
 	fmt.Printf("Workflow Type Version: %s\n", plugin.WorkflowTypeVersion)
 	fmt.Printf("Workflow Engine Version: %s\n", plugin.WorkflowEngineVersion)
 	fmt.Println("-----------------------")
+
 	primaryDescriptor, err := downloadWorkflow(runRequest)
 	if err != nil {
 		logger.L.Error("error downloading workflow", "error", err)
@@ -63,6 +68,21 @@ func handleMetelCmd() {
 		}
 	}
 	fmt.Println("--------------------")
+
+	executionSpec, err := getExecutionSpec(plugin, runRequest, primaryDescriptor, runID)
+	if err != nil {
+		logger.L.Error("could not get execution spec", "error", err)
+		os.Exit(1)
+	}
+	fmt.Printf("ExecutionSpec: %v\n", executionSpec)
+
+	// 4. Launch the K8s job for workflow execution.
+	if err := workflow.LaunchJob(executionSpec, runID); err != nil {
+		logger.L.Error("failed to launch job", "error", err)
+		os.Exit(1)
+	}
+
+	logger.L.Info("successfully launched job", "run_id", runID)
 }
 
 func parseParams() (*api.RunRequest, string, error) {

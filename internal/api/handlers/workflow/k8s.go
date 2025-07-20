@@ -105,7 +105,7 @@ func CreatePVCForRun(runID string) (*v1.PersistentVolumeClaim, error) {
 
 // CreateMetelJob creates a job to run the workflow.
 func CreateMetelJob(runID string, runRequest *api.RunRequest, pvcName string, attachmentConfigMaps []string) (*batchv1.Job, error) {
-	args := buildMetelArgs(runRequest)
+	args := buildMetelArgs(runRequest, runID)
 
 	metelJobName := fmt.Sprintf("%s-%s", config.Cfg.K8s.MetelPrefix, runID)
 	job := &batchv1.Job{
@@ -168,7 +168,8 @@ func CreateMetelJob(runID string, runRequest *api.RunRequest, pvcName string, at
 							},
 						},
 					},
-					RestartPolicy: v1.RestartPolicy(config.Cfg.K8s.RestartPolicy),
+					RestartPolicy:      v1.RestartPolicy(config.Cfg.K8s.RestartPolicy),
+					ServiceAccountName: config.Cfg.K8s.ServiceAccountName,
 				},
 			},
 		},
@@ -216,7 +217,7 @@ func UpdateOwnerReferences(job *batchv1.Job, pvcName string, attachmentConfigMap
 	}
 }
 
-func buildMetelArgs(runRequest *api.RunRequest) []string {
+func buildMetelArgs(runRequest *api.RunRequest, runID string) []string {
 	args := []string{"/metis", "metel"}
 	if runRequest.WorkflowUrl != "" {
 		args = append(args, "--workflow_url", runRequest.WorkflowUrl)
@@ -251,6 +252,7 @@ func buildMetelArgs(runRequest *api.RunRequest) []string {
 			args = append(args, "--tags", string(paramsBytes))
 		}
 	}
+	args = append(args, "--run_id", runID)
 	return args
 }
 
