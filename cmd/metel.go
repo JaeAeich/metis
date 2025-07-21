@@ -32,51 +32,30 @@ func handleMetelCmd() {
 	startTime := time.Now().Format(time.RFC3339)
 
 	if err != nil {
-		logger.L.Error("error parsing parameters", "error", err)
-		// Update workflow with error state (runID might be empty, so we skip DB update here)
+		handleWorkflowError("error parsing parameters", err, runID, "", "")
 		os.Exit(1)
 	}
 
 	plugin, err := getPlugin(runRequest)
 	if err != nil {
-		logger.L.Error("error getting plugin", "error", err)
-		errorMsg := err.Error()
-		systemLogs := "Failed to find suitable plugin for workflow type: " + runRequest.WorkflowType
-		if updateErr := workflowDB.UpdateWorkflowWithError(runID, errorMsg, systemLogs); updateErr != nil {
-			logger.L.Error("failed to update workflow with error", "run_id", runID, "error", updateErr)
-		}
+		handleWorkflowError("error getting plugin", err, runID, err.Error(), "Failed to find suitable plugin for workflow type: "+runRequest.WorkflowType)
 		os.Exit(1)
 	}
 
 	primaryDescriptor, err := downloadWorkflow(runRequest)
 	if err != nil {
-		logger.L.Error("error downloading workflow", "error", err)
-		errorMsg := err.Error()
-		systemLogs := "Failed to download workflow from URL: " + runRequest.WorkflowUrl
-		if updateErr := workflowDB.UpdateWorkflowWithError(runID, errorMsg, systemLogs); updateErr != nil {
-			logger.L.Error("failed to update workflow with error", "run_id", runID, "error", updateErr)
-		}
+		handleWorkflowError("error downloading workflow", err, runID, err.Error(), "Failed to download workflow from URL: "+runRequest.WorkflowUrl)
 		os.Exit(1)
 	}
 
 	executionSpec, err := getExecutionSpec(plugin, runRequest, primaryDescriptor, runID)
 	if err != nil {
-		logger.L.Error("could not get execution spec", "error", err)
-		errorMsg := err.Error()
-		systemLogs := "Failed to get execution spec from plugin: " + plugin.PluginURL
-		if updateErr := workflowDB.UpdateWorkflowWithError(runID, errorMsg, systemLogs); updateErr != nil {
-			logger.L.Error("failed to update workflow with error", "run_id", runID, "error", updateErr)
-		}
+		handleWorkflowError("could not get execution spec", err, runID, err.Error(), "Failed to get execution spec from plugin: "+plugin.PluginURL)
 		os.Exit(1)
 	}
 
 	if launchErr := workflow.LaunchJob(executionSpec, runID); launchErr != nil {
-		logger.L.Error("failed to launch job", "error", launchErr)
-		errorMsg := launchErr.Error()
-		systemLogs := "Failed to launch Kubernetes job for run ID: " + runID
-		if updateErr := workflowDB.UpdateWorkflowWithError(runID, errorMsg, systemLogs); updateErr != nil {
-			logger.L.Error("failed to update workflow with error", "run_id", runID, "error", updateErr)
-		}
+		handleWorkflowError("failed to launch job", launchErr, runID, launchErr.Error(), "Failed to launch Kubernetes job for run ID: "+runID)
 		os.Exit(1)
 	}
 
@@ -89,12 +68,7 @@ func handleMetelCmd() {
 
 	result, err := workflow.WatchJob(context.Background(), runID)
 	if err != nil {
-		logger.L.Error("failed to watch job", "error", err)
-		errorMsg := err.Error()
-		systemLogs := "Failed to watch Kubernetes job status for run ID: " + runID
-		if updateErr := workflowDB.UpdateWorkflowWithError(runID, errorMsg, systemLogs); updateErr != nil {
-			logger.L.Error("failed to update workflow with error", "run_id", runID, "error", updateErr)
-		}
+		handleWorkflowError("failed to watch job", err, runID, err.Error(), "Failed to watch Kubernetes job status for run ID: "+runID)
 		os.Exit(1)
 	}
 
@@ -116,25 +90,47 @@ func handleMetelCmd() {
 
 	parsedRunLog, err := parseExecution(plugin, runID, result.Logs, result)
 	if err != nil {
-		logger.L.Error("failed to parse execution", "error", err)
-		errorMsg := err.Error()
-		systemLogs := "Failed to parse execution results from plugin: " + plugin.PluginURL
-		if updateErr := workflowDB.UpdateWorkflowWithError(runID, errorMsg, systemLogs); updateErr != nil {
-			logger.L.Error("failed to update workflow with error", "run_id", runID, "error", updateErr)
-		}
+		handleWorkflowError("failed to parse execution", err, runID, err.Error(), "Failed to parse execution results from plugin: "+plugin.PluginURL)
 		os.Exit(1)
 	}
 
-	outputs := make(map[string]interface{})
-	if parsedRunLog.Outputs != nil {
-		for k, v := range parsedRunLog.Outputs {
-			outputs[k] = v.AsInterface()
-		}
+	outputs := convertOutputs(parsedRunLog.Outputs)
+	taskLogs := convertTaskLogs(parsedRunLog.TaskLogs)
+
+	// Determine final state based on job result
+	var finalState api.State
+	switch result.Status {
+	case workflow.JobFailedCommand:
+		finalState = api.SYSTEMERROR
+	case workflow.JobSucceeded:
+		finalState = api.COMPLETE
+	default:
+		finalState = api.EXECUTORERROR // Even failed jobs are marked as complete
 	}
 
-	// Convert task logs to TaskLog format for database schema
-	taskLogs := make([]api.TaskLog, len(parsedRunLog.TaskLogs))
-	for i, log := range parsedRunLog.TaskLogs {
+	updateWorkflowComplete(runID, finalState, parsedRunLog, executionSpec, &startTime, &endTime, runRequest, outputs, taskLogs)
+}
+
+func handleWorkflowError(logMsg string, err error, runID, errorMsg, systemLogs string) {
+	logger.L.Error(logMsg, "error", err)
+	if runID != "" && errorMsg != "" && systemLogs != "" {
+		if updateErr := workflowDB.UpdateWorkflowWithError(runID, errorMsg, systemLogs); updateErr != nil {
+			logger.L.Error("failed to update workflow with error", "run_id", runID, "error", updateErr)
+		}
+	}
+}
+
+func convertOutputs(outputs map[string]*structpb.Value) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range outputs {
+		result[k] = v.AsInterface()
+	}
+	return result
+}
+
+func convertTaskLogs(logs []*proto.Log) []api.TaskLog {
+	taskLogs := make([]api.TaskLog, len(logs))
+	for i, log := range logs {
 		taskLogs[i] = api.TaskLog{
 			Name:       &log.Name,
 			Cmd:        &log.Cmd,
@@ -146,25 +142,18 @@ func handleMetelCmd() {
 			SystemLogs: &log.SystemLogs,
 		}
 	}
+	return taskLogs
+}
 
-	// Determine final state based on job result
-	var finalState api.State
-	switch result.Status {
-	case workflow.JobSucceeded:
-		finalState = api.COMPLETE
-	default:
-		finalState = api.COMPLETE // Even failed jobs are marked as complete
-	}
-
-	// Create RunLog for database schema
+func updateWorkflowComplete(runID string, finalState api.State, parsedRunLog *proto.WesRunLog, executionSpec *proto.ExecutionSpec, startTime, endTime *string, runRequest *api.RunRequest, outputs map[string]interface{}, taskLogs []api.TaskLog) {
 	runLog := &api.RunLog{
 		RunId: &runID,
 		State: &finalState,
 		RunLog: &api.Log{
 			Name:       &parsedRunLog.RunLog.Name,
 			Cmd:        &executionSpec.Command,
-			StartTime:  &startTime,
-			EndTime:    &endTime,
+			StartTime:  startTime,
+			EndTime:    endTime,
 			ExitCode:   &parsedRunLog.RunLog.ExitCode,
 			Stdout:     &parsedRunLog.RunLog.Stdout,
 			Stderr:     &parsedRunLog.RunLog.Stderr,
@@ -174,12 +163,10 @@ func handleMetelCmd() {
 		Outputs: &outputs,
 	}
 
-	// Create workflow document using database schema
 	workflowDoc := schema.NewWorkflowCollection(runID)
 	workflowDoc.Workflow.RunLog = runLog
 	workflowDoc.Workflow.Tasks = taskLogs
 
-	// Update completed workflow data in database
 	if err := workflowDB.UpdateWorkflowComplete(workflowDoc); err != nil {
 		logger.L.Error("failed to update workflow in database", "run_id", runID, "error", err)
 	} else {
@@ -356,6 +343,16 @@ func getExecutionSpec(plugin *config.PluginConfig, runRequest *api.RunRequest, p
 			Parameters:  config.Cfg.Metel.Staging.Parameters,
 		},
 		PrimaryDescriptor: primaryDescriptor,
+		BackendConfig: &proto.BackendConfig{
+			Type: string(config.Cfg.ExecutionBackend.Type),
+			TesConfig: &proto.TesConfig{
+				Url: config.Cfg.ExecutionBackend.TesConfig.URL,
+				// TODO: Configure auth, rn with this we can test with Poiesis's dummy auth
+				BearerToken:  "asdf",
+				RefreshToken: "",
+			},
+			LocalConfig: &proto.LocalConfig{},
+		},
 	})
 }
 

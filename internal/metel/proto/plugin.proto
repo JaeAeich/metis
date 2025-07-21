@@ -28,6 +28,21 @@ message StagingInfo {
   map<string, string> parameters = 3;
 }
 
+message LocalConfig {}
+
+message TesConfig {
+  string url = 1;
+  string bearer_token = 2;
+  string refresh_token = 3;
+}
+
+message BackendConfig {
+  // Either local or tes
+  string type = 1;
+  TesConfig tes_config = 2;
+  LocalConfig local_config = 3;
+}
+
 message GetExecutionSpecRequest {
   // The original WES request.
   WesRequest wes_request = 1;
@@ -45,6 +60,9 @@ message GetExecutionSpecRequest {
   // generate the command, e.g., dummy-engine run dummyfile.
   // Example: file://./nesting/entrypoint.engine, file://entrypoint.engine
   string primary_descriptor = 3;
+
+  // Backend configuration for execution
+  BackendConfig backend_config = 4;
 }
 
 message WesRequest {

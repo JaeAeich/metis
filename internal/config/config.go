@@ -19,12 +19,13 @@ var (
 
 // Config holds the application's configuration.
 type Config struct {
-	Metel   MetelConfig    `mapstructure:"METEL"`
-	Log     LogConfig      `mapstructure:"LOG"`
-	Mongo   MongoConfig    `mapstructure:"MONGO"`
-	API     APIConfig      `mapstructure:"API"`
-	Plugins []PluginConfig `mapstructure:"PLUGINS"`
-	K8s     K8sConfig      `mapstructure:"K8S"`
+	ExecutionBackend ExecutionBackendConfig `mapstructure:"EXECUTION_BACKEND"`
+	Metel            MetelConfig            `mapstructure:"METEL"`
+	Log              LogConfig              `mapstructure:"LOG"`
+	Mongo            MongoConfig            `mapstructure:"MONGO"`
+	API              APIConfig              `mapstructure:"API"`
+	Plugins          []PluginConfig         `mapstructure:"PLUGINS"`
+	K8s              K8sConfig              `mapstructure:"K8S"`
 }
 
 // LoadCommonConfig loads the common configuration.
@@ -76,6 +77,9 @@ func LoadCommonConfig() error {
 	viper.SetDefault("METEL.STAGING.PREFIX", "workflows")
 	viper.SetDefault("METEL.STAGING.URL", "")
 	viper.SetDefault("METEL.STAGING.PARAMETERS", map[string]string{})
+
+	viper.SetDefault("EXECUTION_BACKEND.TYPE", "local")
+	viper.SetDefault("EXECUTION_BACKEND.TES_CONFIG.URL", "")
 
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
