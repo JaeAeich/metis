@@ -10,6 +10,9 @@ option go_package = "github.com/jaeaeich/metis/internal/metel/proto";
 service PluginExecution {
   // GetExecutionSpec provides the specification for executing a workflow.
   rpc GetExecutionSpec(GetExecutionSpecRequest) returns (ExecutionSpec);
+
+  // ParseExecution parses the execution logs and returns a RunLog.
+  rpc ParseExecution(ParseExecutionRequest) returns (WesRunLog);
 }
 
 message StagingInfo {
@@ -53,6 +56,67 @@ message WesRequest {
   string workflow_engine_version = 6;
   map<string, string> workflow_engine_parameters = 7;
   map<string, string> tags = 8;
+}
+
+message WesState {
+  // The state of the task.
+  State state = 1;
+}
+
+enum State {
+  UNKNOWN = 0;
+  QUEUED = 1;
+  INITIALIZING = 2;
+  RUNNING = 3;
+  PAUSED = 4;
+  COMPLETE = 5;
+  EXECUTOR_ERROR = 6;
+  SYSTEM_ERROR = 7;
+  CANCELED = 8;
+  CANCELING = 9;
+  PREEMPTED = 10;
+}
+
+enum ParseState {
+  UNKNOWN_STATE = 0;
+  SUCCESS = 1;
+  FAILURE = 2;
+}
+
+message Log {
+  repeated string cmd = 1;
+  string end_time = 2;
+  int32 exit_code = 3;
+  // If the name doesn't exists or the engine doesn't
+  // parse it, then generate a random name.
+  // Example: jumpy-mangoes
+  string name = 4;
+  string start_time = 5;
+  string stderr = 6;
+  string stdout = 7;
+  // Plugin should return any logs it wants to, metis
+  // will prepend its own system logs if need be.
+  repeated string system_logs = 8;
+}
+
+message WesRunLog {
+  State state = 1;
+  Log run_log = 2;
+  map<string, google.protobuf.Value> outputs = 3;
+  repeated Log task_logs = 4;
+}
+
+message ParseExecutionRequest {
+  // The logs from the workflow execution.
+  string job_logs = 1;
+
+  // The staging area so that plugin can list all the
+  // wf files and parse a WES response out of them.
+  StagingInfo staging_info = 2;
+
+  // This helps the plugin to decide any log file generated
+  // by the engine is to become stdout or err
+  ParseState state = 3;
 }
 
 // ExecutionSpec contains the information needed to run the workflow.

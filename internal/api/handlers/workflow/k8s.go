@@ -111,16 +111,17 @@ func CreateMetelJob(runID string, runRequest *api.RunRequest, pvcName string, at
 	metelJobName := fmt.Sprintf("%s-%s", config.Cfg.K8s.MetelPrefix, runID)
 
 	envVars := []v1.EnvVar{}
+	// Add all env vars that start with METIS_
+	// Don't add k8s config path else in-cluster config might not be used
 	for _, env := range os.Environ() {
-		if strings.HasPrefix(env, "METIS_METEL_STAGING_PARAMETERS_") {
+		if strings.HasPrefix(env, "METIS_") && !strings.HasPrefix(env, "METIS_K8S_CONFIG_PATH") {
 			parts := strings.SplitN(env, "=", 2)
-			// Strip the prefix to get the actual env var name for the AWS SDK
-			// e.g., METIS_METEL_STAGING_PARAMETERS_AWS_REGION -> AWS_REGION
-			key := strings.TrimPrefix(parts[0], "METIS_METEL_STAGING_PARAMETERS_")
-			envVars = append(envVars, v1.EnvVar{
-				Name:  key,
-				Value: parts[1],
-			})
+			if len(parts) == 2 {
+				envVars = append(envVars, v1.EnvVar{
+					Name:  parts[0],
+					Value: parts[1],
+				})
+			}
 		}
 	}
 

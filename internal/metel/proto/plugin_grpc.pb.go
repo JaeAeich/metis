@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	PluginExecution_GetExecutionSpec_FullMethodName = "/metel.v1.PluginExecution/GetExecutionSpec"
+	PluginExecution_ParseExecution_FullMethodName   = "/metel.v1.PluginExecution/ParseExecution"
 )
 
 // PluginExecutionClient is the client API for PluginExecution service.
@@ -30,6 +31,8 @@ const (
 type PluginExecutionClient interface {
 	// GetExecutionSpec provides the specification for executing a workflow.
 	GetExecutionSpec(ctx context.Context, in *GetExecutionSpecRequest, opts ...grpc.CallOption) (*ExecutionSpec, error)
+	// ParseExecution parses the execution logs and returns a RunLog.
+	ParseExecution(ctx context.Context, in *ParseExecutionRequest, opts ...grpc.CallOption) (*WesRunLog, error)
 }
 
 type pluginExecutionClient struct {
@@ -50,6 +53,16 @@ func (c *pluginExecutionClient) GetExecutionSpec(ctx context.Context, in *GetExe
 	return out, nil
 }
 
+func (c *pluginExecutionClient) ParseExecution(ctx context.Context, in *ParseExecutionRequest, opts ...grpc.CallOption) (*WesRunLog, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WesRunLog)
+	err := c.cc.Invoke(ctx, PluginExecution_ParseExecution_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PluginExecutionServer is the server API for PluginExecution service.
 // All implementations must embed UnimplementedPluginExecutionServer
 // for forward compatibility.
@@ -58,6 +71,8 @@ func (c *pluginExecutionClient) GetExecutionSpec(ctx context.Context, in *GetExe
 type PluginExecutionServer interface {
 	// GetExecutionSpec provides the specification for executing a workflow.
 	GetExecutionSpec(context.Context, *GetExecutionSpecRequest) (*ExecutionSpec, error)
+	// ParseExecution parses the execution logs and returns a RunLog.
+	ParseExecution(context.Context, *ParseExecutionRequest) (*WesRunLog, error)
 	mustEmbedUnimplementedPluginExecutionServer()
 }
 
@@ -70,6 +85,9 @@ type UnimplementedPluginExecutionServer struct{}
 
 func (UnimplementedPluginExecutionServer) GetExecutionSpec(context.Context, *GetExecutionSpecRequest) (*ExecutionSpec, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetExecutionSpec not implemented")
+}
+func (UnimplementedPluginExecutionServer) ParseExecution(context.Context, *ParseExecutionRequest) (*WesRunLog, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ParseExecution not implemented")
 }
 func (UnimplementedPluginExecutionServer) mustEmbedUnimplementedPluginExecutionServer() {}
 func (UnimplementedPluginExecutionServer) testEmbeddedByValue()                         {}
@@ -110,6 +128,24 @@ func _PluginExecution_GetExecutionSpec_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PluginExecution_ParseExecution_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ParseExecutionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PluginExecutionServer).ParseExecution(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PluginExecution_ParseExecution_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PluginExecutionServer).ParseExecution(ctx, req.(*ParseExecutionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PluginExecution_ServiceDesc is the grpc.ServiceDesc for PluginExecution service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -120,6 +156,10 @@ var PluginExecution_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetExecutionSpec",
 			Handler:    _PluginExecution_GetExecutionSpec_Handler,
+		},
+		{
+			MethodName: "ParseExecution",
+			Handler:    _PluginExecution_ParseExecution_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

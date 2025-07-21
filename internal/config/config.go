@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -79,6 +80,19 @@ func LoadCommonConfig() error {
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
 		return err
+	}
+
+	// Manually unmarshal METEL.STAGING.PARAMETERS from environment variables
+	stagingParams := make(map[string]string)
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "METIS_METEL_STAGING_PARAMETERS_") {
+			parts := strings.SplitN(env, "=", 2)
+			key := strings.TrimPrefix(parts[0], "METIS_METEL_STAGING_PARAMETERS_")
+			stagingParams[key] = parts[1]
+		}
+	}
+	if len(stagingParams) > 0 {
+		config.Metel.Staging.Parameters = stagingParams
 	}
 
 	Cfg = &config
