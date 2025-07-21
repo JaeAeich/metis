@@ -17,3 +17,9 @@ var ErrFileNotFound = errors.New("file not found")
 
 // ErrUnsupportedStagingProviderType is returned when the staging provider type is unsupported.
 var ErrUnsupportedStagingProviderType = errors.New("unsupported staging provider type")
+
+// ErrJobFailed is returned when a Kubernetes job fails.
+var ErrJobFailed = errors.New("job failed")
+
+// ErrJobNotFinished is returned when a job is still running or in an unknown state.
+var ErrJobNotFinished = errors.New("job is still running or in an unknown state")

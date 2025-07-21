@@ -77,12 +77,33 @@ func handleMetelCmd() {
 	fmt.Printf("ExecutionSpec: %v\n", executionSpec)
 
 	// 4. Launch the K8s job for workflow execution.
-	if err := workflow.LaunchJob(executionSpec, runID); err != nil {
-		logger.L.Error("failed to launch job", "error", err)
+	if launchErr := workflow.LaunchJob(executionSpec, runID); launchErr != nil {
+		logger.L.Error("failed to launch job", "error", launchErr)
 		os.Exit(1)
 	}
 
 	logger.L.Info("successfully launched job", "run_id", runID)
+
+	// 5. Watch the K8s job until it completes or fails.
+	result, err := workflow.WatchJob(context.Background(), runID)
+	if err != nil {
+		logger.L.Error("failed to watch job", "error", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("--- Job Result ---")
+	switch result.Status {
+	case workflow.JobSucceeded:
+		fmt.Println("Status: Succeeded")
+	case workflow.JobFailedCommand:
+		fmt.Println("Status: Command Failed")
+	case workflow.JobFailedSystem:
+		fmt.Println("Status: System Failed")
+	}
+	fmt.Printf("Message: %s\n", result.Message)
+	fmt.Println("--- Logs ---")
+	fmt.Println(result.Logs)
+	fmt.Println("------------")
 }
 
 func parseParams() (*api.RunRequest, string, error) {
