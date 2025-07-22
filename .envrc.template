@@ -46,6 +46,18 @@ export METIS_METEL_STAGING_BUCKET="metis"
 export METIS_METEL_STAGING_PREFIX="workflows"
 export METIS_METEL_STAGING_URL=""
 # For map values like parameters, you can define them by exporting variables
-# with the key as a suffix. Viper will automatically collect them into a map.
-# Example for S3 staging parameters:
-# export METIS_METEL_STAGING_PARAMETERS_REGION="us-east-1"
+# with the parameter name as a suffix. Viper will automatically collect these
+# into a map, which are then passed as environment variables to the metel pod.
+# This is how you provide credentials and configuration for S3-compatible storage.
+#
+# Example for AWS S3:
+# The keys (e.g., AWS_ACCESS_KEY_ID) must be in all caps to be recognized by the AWS SDK.
+# export METIS_METEL_STAGING_PARAMETERS_AWS_ACCESS_KEY_ID="your-access-key"
+# export METIS_METEL_STAGING_PARAMETERS_AWS_SECRET_ACCESS_KEY="your-secret-key"
+# export METIS_METEL_STAGING_PARAMETERS_AWS_REGION="us-east-1"
+#
+# Example for MinIO or other S3-compatible storage:
+# export METIS_METEL_STAGING_PARAMETERS_AWS_ACCESS_KEY_ID="minioadmin"
+# export METIS_METEL_STAGING_PARAMETERS_AWS_SECRET_ACCESS_KEY="minioadmin"
+# export METIS_METEL_STAGING_PARAMETERS_AWS_REGION="us-east-1"
+# export METIS_METEL_STAGING_PARAMETERS_AWS_ENDPOINT_URL="http://minio.minio.svc.cluster.local:9000"

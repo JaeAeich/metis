@@ -70,6 +70,12 @@ func LoadCommonConfig() error {
 	viper.SetDefault("K8S.IMAGE_NAME", "jaeaeich/metis:latest")
 	viper.SetDefault("K8S.PLUGIN_CONFIG_MAP_NAME", "metis-plugin-configmap")
 	viper.SetDefault("K8S.SERVICE_ACCOUNT_NAME", "metis-service-account")
+	viper.SetDefault("METEL.STAGING.TYPE", "s3")
+	viper.SetDefault("METEL.STAGING.BUCKET", "metis")
+	viper.SetDefault("METEL.STAGING.PREFIX", "workflows")
+	viper.SetDefault("METEL.STAGING.URL", "")
+	viper.SetDefault("METEL.STAGING.PARAMETERS", map[string]string{})
+
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
 		return err
@@ -82,11 +88,6 @@ func LoadCommonConfig() error {
 
 // LoadMetelConfig loads the Metel configuration.
 func LoadMetelConfig() error {
-	viper.SetDefault("METEL.STAGING.TYPE", "s3")
-	viper.SetDefault("METEL.STAGING.BUCKET", "metis")
-	viper.SetDefault("METEL.STAGING.PREFIX", "workflows")
-	viper.SetDefault("METEL.STAGING.URL", "")
-	viper.SetDefault("METEL.STAGING.PARAMETERS", map[string]string{})
 	return LoadCommonConfig()
 }
 

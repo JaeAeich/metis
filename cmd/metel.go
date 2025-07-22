@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	"google.golang.org/grpc"
@@ -95,6 +96,9 @@ func handleMetelCmd() {
 	switch result.Status {
 	case workflow.JobSucceeded:
 		fmt.Println("Status: Succeeded")
+		if err := stageLocalData(executionSpec, runID); err != nil {
+			logger.L.Error("failed to stage local data", "error", err)
+		}
 	case workflow.JobFailedCommand:
 		fmt.Println("Status: Command Failed")
 	case workflow.JobFailedSystem:
@@ -224,4 +228,24 @@ func getExecutionSpec(plugin *config.PluginConfig, runRequest *api.RunRequest, p
 		},
 		PrimaryDescriptor: primaryDescriptor,
 	})
+}
+
+func stageLocalData(spec *proto.ExecutionSpec, runID string) error {
+	if len(spec.OutputsToStage) == 0 {
+		return nil
+	}
+
+	provider, err := staging.GetProvider()
+	if err != nil {
+		return fmt.Errorf("failed to get staging provider: %w", err)
+	}
+
+	for _, dir := range spec.OutputsToStage {
+		remotePath := path.Join(config.Cfg.Metel.Staging.Prefix, runID, dir)
+		localPath := path.Join(config.Cfg.K8s.PVCMountPath, dir)
+		if err := provider.UploadDir(localPath, remotePath); err != nil {
+			return fmt.Errorf("failed to upload directory %s: %w", dir, err)
+		}
+	}
+	return nil
 }

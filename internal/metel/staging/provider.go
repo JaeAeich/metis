@@ -10,6 +10,8 @@ import (
 type Provider interface {
 	// GetURL returns the remote staging area URL for a given run ID.
 	GetURL(runID string) (string, error)
+	// UploadDir uploads a directory to the remote staging area.
+	UploadDir(localPath, remotePath string) error
 }
 
 // GetProvider returns a staging provider based on the configuration.

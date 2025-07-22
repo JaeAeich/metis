@@ -80,4 +80,10 @@ message ExecutionSpec {
 
   // A map of environment variables to be set in the workflow container.
   map<string, string> environment = 5;
+
+  // Local paths (directories or files) to be uploaded to the remote staging
+  // area after workflow execution. The plugin can then parse these to extract
+  // outputs and metadata for the WES response.
+  // Example: .nextflow, .snakemake
+  repeated string outputs_to_stage = 6;
 }

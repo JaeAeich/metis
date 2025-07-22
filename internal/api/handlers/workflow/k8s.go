@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
+	"os"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -108,6 +109,21 @@ func CreateMetelJob(runID string, runRequest *api.RunRequest, pvcName string, at
 	args := buildMetelArgs(runRequest, runID)
 
 	metelJobName := fmt.Sprintf("%s-%s", config.Cfg.K8s.MetelPrefix, runID)
+
+	envVars := []v1.EnvVar{}
+	for _, env := range os.Environ() {
+		if strings.HasPrefix(env, "METIS_METEL_STAGING_PARAMETERS_") {
+			parts := strings.SplitN(env, "=", 2)
+			// Strip the prefix to get the actual env var name for the AWS SDK
+			// e.g., METIS_METEL_STAGING_PARAMETERS_AWS_REGION -> AWS_REGION
+			key := strings.TrimPrefix(parts[0], "METIS_METEL_STAGING_PARAMETERS_")
+			envVars = append(envVars, v1.EnvVar{
+				Name:  key,
+				Value: parts[1],
+			})
+		}
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      metelJobName,
@@ -155,6 +171,7 @@ func CreateMetelJob(runID string, runRequest *api.RunRequest, pvcName string, at
 							Name:            metelJobName,
 							Image:           config.Cfg.K8s.ImageName,
 							Args:            args,
+							Env:             envVars,
 							ImagePullPolicy: v1.PullPolicy(config.Cfg.K8s.ImagePullPolicy),
 							VolumeMounts: []v1.VolumeMount{
 								{
@@ -174,6 +191,7 @@ func CreateMetelJob(runID string, runRequest *api.RunRequest, pvcName string, at
 			},
 		},
 	}
+	logger.L.Debug("creating metel job", "job", job)
 	createdJob, err := clients.K8s.BatchV1().Jobs(config.Cfg.K8s.Namespace).Create(context.Background(), job, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create job: %w", err)
