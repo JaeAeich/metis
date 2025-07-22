@@ -1,7 +1,7 @@
 # Metis
 
 <div align="center">
-  <img src="public/logo.png" alt="Metis Logo" width="300"/>
+  <img src="./docs/public/web-app-manifest-512x512.png" alt="Metis Logo" width="300"/>
   <br/>
 <em align="center">A Kubernetes-native, federation-promoting, highly-pluggable,
 GA4GH WES 1.1.0 compliant workflow execution service.</em>

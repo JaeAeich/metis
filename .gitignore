@@ -323,3 +323,4 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/go,macos,linux,visualstudiocode,windows,vim,jetbrains,goland
 
 bin/
+docs/.vitepress/cache

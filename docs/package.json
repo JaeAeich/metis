@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "vitepress": "^1.6.3",
+    "@catppuccin/vitepress": "^0.1.0",
+    "@ibm/plex": "^6.4.1"
+  },
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  }
+}
