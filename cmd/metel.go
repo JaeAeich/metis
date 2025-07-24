@@ -104,6 +104,9 @@ func handleMetelCmd() {
 			logger.L.Error("failed to stage local data", "error", stageErr)
 		}
 	case workflow.JobFailedCommand:
+		if stageErr := stageLocalData(executionSpec, runID); stageErr != nil {
+			logger.L.Error("failed to stage local data", "error", stageErr)
+		}
 		logger.L.Error("command failed", "error", result.Message)
 	case workflow.JobFailedSystem:
 		logger.L.Error("system failed", "error", result.Message)
@@ -300,7 +303,7 @@ func downloadWorkflow(runRequest *api.RunRequest) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get downloader: %w", err)
 	}
-	primaryDescriptor, err := downloader.Download(runRequest.WorkflowUrl, config.Cfg.K8s.PVCMountPath)
+	primaryDescriptor, err := downloader.Download(runRequest.WorkflowUrl, config.Cfg.K8s.PVCMountPath, runRequest.WorkflowType)
 	if err != nil {
 		return "", fmt.Errorf("failed to download workflow: %w", err)
 	}

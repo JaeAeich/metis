@@ -17,7 +17,7 @@ type FileDownloader struct{}
 // workflow_attachment in the WES request, which means it should already
 // be present at the mount, ie destination.
 // Example: url: file://my-file
-func (d *FileDownloader) Download(url string, destination string) (string, error) {
+func (d *FileDownloader) Download(url string, destination string, descriptorType string) (string, error) {
 	fileName := strings.TrimPrefix(url, "file://")
 
 	filePath := filepath.Join(destination, fileName)

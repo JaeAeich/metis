@@ -22,6 +22,8 @@ func GetDownloader(rawURL string) (Downloader, error) {
 		return &HTTPDownloader{}, nil
 	case "file":
 		return &FileDownloader{}, nil
+	case "trs":
+		return &TRSDownloader{}, nil
 	default:
 		return nil, errors.ErrUnsupportedProtocol
 	}

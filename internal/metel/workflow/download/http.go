@@ -14,7 +14,7 @@ type HTTPDownloader struct{}
 
 // Download downloads a file from an HTTP URL.
 // Example: url: https://example.com/my-file
-func (d *HTTPDownloader) Download(url string, destination string) (string, error) {
+func (d *HTTPDownloader) Download(url string, destination string, descriptorType string) (string, error) {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
