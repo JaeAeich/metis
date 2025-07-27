@@ -20,8 +20,8 @@ import (
 // S3Provider is a staging provider for AWS S3.
 type S3Provider struct{}
 
-// GetURL returns the S3 URL for a given run ID.
-func (p *S3Provider) GetURL(runID string) (string, error) {
+// GetURI returns the S3 URI for a given run ID.
+func (p *S3Provider) GetURI(runID string) (string, error) {
 	stagingPath := path.Join(root.Cfg.Metel.Staging.Prefix, runID)
 	return fmt.Sprintf("s3://%s/%s", root.Cfg.Metel.Staging.Bucket, stagingPath), nil
 }

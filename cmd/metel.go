@@ -229,7 +229,7 @@ func parseExecution(plugin *config.PluginConfig, runID, jobLogs string, result *
 	if err != nil {
 		return nil, fmt.Errorf("failed to get staging provider: %w", err)
 	}
-	stagingURL, err := provider.GetURL(runID)
+	stagingURI, err := provider.GetURI(runID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get remote staging area: %w", err)
 	}
@@ -260,17 +260,16 @@ func parseExecution(plugin *config.PluginConfig, runID, jobLogs string, result *
 		state = proto.ParseState_UNKNOWN_STATE
 	}
 
-	fmt.Printf("stagingURL: %s\n", stagingURL)
-	fmt.Printf("endpointURL: %s\n", config.Cfg.Metel.Staging.URL)
+	fmt.Printf("stagingURI: %s\n", stagingURI)
 	fmt.Printf("parameters: %v\n", config.Cfg.Metel.Staging.Parameters)
 	fmt.Printf("state: %v\n", state)
 
 	return c.ParseExecution(ctx, &proto.ParseExecutionRequest{
 		JobLogs: jobLogs,
 		StagingInfo: &proto.StagingInfo{
-			StagingUrl:  stagingURL,
-			EndpointUrl: config.Cfg.Metel.Staging.URL,
-			Parameters:  config.Cfg.Metel.Staging.Parameters,
+			Type:       config.Cfg.Metel.Staging.Type,
+			StagingUri: stagingURI,
+			Parameters: config.Cfg.Metel.Staging.Parameters,
 		},
 		State: state,
 	})
@@ -302,7 +301,7 @@ func getExecutionSpec(plugin *config.PluginConfig, runRequest *api.RunRequest, p
 	if err != nil {
 		return nil, fmt.Errorf("failed to get staging provider: %w", err)
 	}
-	stagingURL, err := provider.GetURL(runID)
+	stagingURI, err := provider.GetURI(runID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get remote staging area: %w", err)
 	}
@@ -338,9 +337,9 @@ func getExecutionSpec(plugin *config.PluginConfig, runRequest *api.RunRequest, p
 			Tags:                     *runRequest.Tags,
 		},
 		StagingInfo: &proto.StagingInfo{
-			StagingUrl:  stagingURL,
-			EndpointUrl: config.Cfg.Metel.Staging.URL,
-			Parameters:  config.Cfg.Metel.Staging.Parameters,
+			Type:       config.Cfg.Metel.Staging.Type,
+			StagingUri: stagingURI,
+			Parameters: config.Cfg.Metel.Staging.Parameters,
 		},
 		PrimaryDescriptor: primaryDescriptor,
 		BackendConfig: &proto.BackendConfig{
@@ -365,14 +364,14 @@ func stageLocalData(spec *proto.ExecutionSpec, runID string) error {
 		return fmt.Errorf("failed to get staging provider: %w", err)
 	}
 
-	stagingURL, err := provider.GetURL(runID)
+	stagingURI, err := provider.GetURI(runID)
 	if err != nil {
 		return fmt.Errorf("failed to get remote staging area: %w", err)
 	}
 	stagingInfo := &proto.StagingInfo{
-		StagingUrl:  stagingURL,
-		EndpointUrl: config.Cfg.Metel.Staging.URL,
-		Parameters:  config.Cfg.Metel.Staging.Parameters,
+		Type:       config.Cfg.Metel.Staging.Type,
+		StagingUri: stagingURI,
+		Parameters: config.Cfg.Metel.Staging.Parameters,
 	}
 
 	for _, p := range spec.OutputsToStage {

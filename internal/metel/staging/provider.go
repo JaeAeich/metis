@@ -9,8 +9,8 @@ import (
 
 // Provider is an interface for creating remote staging area URLs.
 type Provider interface {
-	// GetURL returns the remote staging area URL for a given run ID.
-	GetURL(runID string) (string, error)
+	// GetURI returns the remote staging area URI for a given run ID.
+	GetURI(runID string) (string, error)
 	// UploadDir uploads a directory to the remote staging area.
 	UploadDir(localPath, remotePath string, stagingInfo *proto.StagingInfo) error
 	// UploadFile uploads a file to the remote staging area.

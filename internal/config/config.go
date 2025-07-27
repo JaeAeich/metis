@@ -75,7 +75,6 @@ func LoadCommonConfig() error {
 	viper.SetDefault("METEL.STAGING.TYPE", "s3")
 	viper.SetDefault("METEL.STAGING.BUCKET", "metis")
 	viper.SetDefault("METEL.STAGING.PREFIX", "workflows")
-	viper.SetDefault("METEL.STAGING.URL", "")
 	viper.SetDefault("METEL.STAGING.PARAMETERS", map[string]string{})
 
 	viper.SetDefault("EXECUTION_BACKEND.TYPE", "local")

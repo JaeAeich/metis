@@ -16,13 +16,12 @@ service PluginExecution {
 }
 
 message StagingInfo {
-  // The full URL to the remote staging area.
-  // Example: s3://metis/workflows/wes_id
-  string staging_url = 1;
+  // The type of staging service being used
+  string type = 1;
 
-  // The endpoint URL for the object store.
-  // This is useful for S3-compatible stores like MinIO.
-  string endpoint_url = 2;
+  // The full URI to the remote staging area.
+  // Example: s3://metis/workflows/wes_id
+  string staging_uri = 2;
 
   // A map of parameters, including credentials, for accessing the object store.
   map<string, string> parameters = 3;
