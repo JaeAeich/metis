@@ -141,6 +141,7 @@ metis:
         # Note: These are used verbatim in the environment variables.
         # so choose the correct default environment variables for your storage provider.
         parameters:
+          AWS_ENDPOINT_URL: ""
           AWS_ACCESS_KEY_ID: ""
           AWS_SECRET_ACCESS_KEY: ""
           AWS_REGION: ""
