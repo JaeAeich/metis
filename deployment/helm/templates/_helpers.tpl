@@ -99,11 +99,11 @@ Return the Staging Secret Name
 {{/*
 Return the MongoDB Secret Password Key
 */}}
-{{- define "metis.mongodb.secretPasswordKey" -}}
-{{- if not .Values.metis.config.mongo.passwordKey }}
-{{- fail "metis.config.mongo.passwordKey is required when using external MongoDB" }}
+{{- define "metis.mongodb.password" -}}
+{{- if not .Values.metis.config.mongo.password }}
+{{- fail "metis.config.mongo.password is required when using external MongoDB" }}
 {{- end }}
-{{- .Values.metis.config.mongo.passwordKey -}}
+{{- .Values.metis.config.mongo.password -}}
 {{- end -}}
 
 {{/*

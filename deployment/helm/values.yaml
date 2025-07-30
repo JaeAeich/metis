@@ -90,7 +90,7 @@ metis:
       host: ""
       port:
       username: ""
-      passwordKey: ""
+      password: ""
       database: "metis"
       workflowCollection: "workflows"
 

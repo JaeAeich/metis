@@ -23,8 +23,10 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "metis.serviceAccountName" . }}
+      {{- if .Values.podSecurityContext }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -99,7 +101,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ include "metis.mongodb.secretName" . }}
-                  key: {{ include "metis.mongodb.secretPasswordKey" . }}
+                  key: {{ include "metis.mongodb.password" . }}
             - name: METIS_METEL_STAGING_URL
               value: {{ include "metis.staging.url" . | quote }}
             {{- range $key, $value := .Values.metis.config.metel.staging.parameters }}
