@@ -1,0 +1,23 @@
+apiVersion: v2
+name: metis
+description: A Helm chart for Metis, a Workflow Execution Service implementation.
+type: application
+version: 0.1.0
+appVersion: "latest"
+icon: https://raw.githubusercontent.com/jaeaeich/metis/refs/heads/main/docs/public/favicon.svg
+home: https://metis.jaeh.me
+sources:
+  - https://github.com/jaeaeich/metis
+  - https://metis.jaeh.me
+
+maintainers:
+  - name: Javed Habib
+    email: jh4official@gmail.com
+    url: https://github.com/jaeaeich
+
+keywords:
+  - workflow
+  - WES
+  - GA4GH
+  - bioinformatics
+  - metis

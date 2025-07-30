@@ -1,0 +1,17 @@
+{{- if .Values.metis.plugins -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "metis.plugin.configMapName" . }}
+  labels:
+    {{- include "metis.labels" . | nindent 4 }}
+data:
+  plugins.yaml: |
+    plugins:
+    {{- range $index, $plugin := .Values.metis.plugins }}
+      - workflow_engine_version: {{ $plugin.workflow_engine_version | quote }}
+        workflow_type: {{ $plugin.workflow_type | quote }}
+        workflow_type_version: {{ $plugin.workflow_type_version | quote }}
+        plugin_url: {{ include "metis.plugin.name" (dict "plugin" $plugin "global" $) }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $plugin.service.port | default 50051 }}
+    {{- end }}
+{{- end }}

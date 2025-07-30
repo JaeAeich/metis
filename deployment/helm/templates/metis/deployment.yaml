@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "metis.fullname" . }}
+  labels:
+    {{- include "metis.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.metis.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "metis.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.commonAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "metis.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "metis.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.metis.image.repository }}:{{ .Values.metis.image.tag }}"
+          imagePullPolicy: {{ .Values.metis.image.pullPolicy }}
+          command: ["/metis", "api"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.metis.service.port }}
+              protocol: TCP
+          env:
+            - name: METIS_LOG_LEVEL
+              value: {{ .Values.metis.config.log.level | quote }}
+            - name: METIS_LOG_FORMAT
+              value: {{ .Values.metis.config.log.format | quote }}
+            - name: METIS_API_SERVER_BASE_PATH
+              value: {{ .Values.metis.config.api.server.basePath | quote }}
+            - name: METIS_API_SWAGGER_PATH
+              value: {{ .Values.metis.config.api.swagger.path | quote }}
+            - name: METIS_API_SWAGGER_TITLE
+              value: {{ .Values.metis.config.api.swagger.title | quote }}
+            - name: METIS_K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: METIS_K8S_RESTART_POLICY
+              value: {{ .Values.metis.config.k8s.restartPolicy | quote }}
+            - name: METIS_K8S_IMAGE_PULL_POLICY
+              value: {{ .Values.metis.config.k8s.imagePullPolicy | quote }}
+            - name: METIS_K8S_JOB_TTL
+              value: {{ .Values.metis.config.k8s.jobTtl | quote }}
+            - name: METIS_K8S_SECURITY_CONTEXT_ENABLED
+              value: {{ .Values.metis.config.k8s.securityContextEnabled | quote }}
+            - name: METIS_K8S_SERVICE_ACCOUNT_NAME
+              value: {{ include "metis.serviceAccountName" . | quote }}
+            - name: METIS_K8S_PLUGIN_CONFIG_MAP_NAME
+              value: {{ include "metis.plugin.configMapName" . | quote }}
+            - name: METIS_K8S_PVC_PREFIX
+              value: {{ .Values.metis.config.k8s.pvc.prefix | quote }}
+            - name: METIS_K8S_DEFAULT_PVC_SIZE
+              value: {{ .Values.metis.config.k8s.pvc.defaultSize | quote }}
+            - name: METIS_K8S_PVC_ACCESS_MODE
+              value: {{ .Values.metis.config.k8s.pvc.accessMode | quote }}
+            - name: METIS_K8S_PVC_STORAGE_CLASS
+              value: {{ .Values.metis.config.k8s.pvc.storageClass | quote }}
+            - name: METIS_K8S_COMMON_PVC_VOLUME_NAME
+              value: {{ .Values.metis.config.k8s.pvc.commonVolumeName | quote }}
+            - name: METIS_METEL_PREFIX
+              value: {{ .Values.metis.config.metel.prefix | quote }}
+            - name: METIS_METEL_WORKFLOW_EXECUTION_PREFIX
+              value: {{ .Values.metis.config.metel.workflowExecutionPrefix | quote }}
+            - name: METIS_METEL_IMAGE_NAME
+              value: {{ .Values.metis.config.metel.imageName | quote }}
+            - name: METIS_METEL_STAGING_TYPE
+              value: {{ include "metis.staging.type" . | quote }}
+            - name: METIS_METEL_STAGING_BUCKET
+              value: {{ include "metis.staging.bucket" . | quote }}
+            - name: METIS_METEL_STAGING_PREFIX
+              value: {{ include "metis.staging.prefix" . | quote }}
+            - name: METIS_MONGO_HOST
+              value: {{ include "metis.mongodb.host" . }}
+            - name: METIS_MONGO_PORT
+              value: {{ include "metis.mongodb.port" . | quote }}
+            - name: METIS_MONGO_USERNAME
+              value: {{ include "metis.mongodb.username" . | quote }}
+            - name: METIS_MONGO_DATABASE
+              value: {{ include "metis.mongodb.database" . | quote }}
+            - name: METIS_MONGO_WORKFLOW_COLLECTION
+              value: {{ include "metis.mongodb.workflowCollection" . | quote }}
+            - name: METIS_MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "metis.mongodb.secretName" . }}
+                  key: {{ include "metis.mongodb.secretPasswordKey" . }}
+            - name: METIS_METEL_STAGING_URL
+              value: {{ include "metis.staging.url" . | quote }}
+            {{- range $key, $value := .Values.metis.config.metel.staging.parameters }}
+            - name: METIS_METEL_STAGING_PARAMETERS_{{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "metis.staging.secretName" $ }}
+                  key: {{ $key }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: plugins-config
+              mountPath: /root/.metis/plugins.yaml
+              subPath: plugins.yaml
+      {{- with .Values.metis.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metis.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.metis.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: plugins-config
+          configMap:
+            name: {{ include "metis.plugin.configMapName" . }}

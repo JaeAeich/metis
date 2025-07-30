@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "metis.fullname" . }}
+  labels:
+    {{- include "metis.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.metis.service.type }}
+  ports:
+    - port: {{ .Values.metis.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "metis.selectorLabels" . | nindent 4 }}
