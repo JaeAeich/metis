@@ -1,0 +1,13 @@
+
+░███     ░███               ░██    ░██
+░████   ░████               ░██
+░██░██ ░██░██  ░███████  ░████████ ░██ ░███████
+░██ ░████ ░██ ░██    ░██    ░██    ░██░██
+░██  ░██  ░██ ░█████████    ░██    ░██ ░███████
+░██       ░██ ░██           ░██    ░██       ░██
+░██       ░██  ░███████      ░████ ░██ ░███████
+
+A GA4GH TES-compliant Workflow Execution Service (TES) designed
+for Kubernetes.
+
+Authored: Javed Habib (jaeaeich)

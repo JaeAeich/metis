@@ -1,0 +1,95 @@
+{{- if .Values.metis.plugins }}
+{{- range $index, $plugin := .Values.metis.plugins }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "metis.plugin.name" (dict "plugin" $plugin "global" $) }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "metis.plugin.labels" (dict "plugin" $plugin "global" $) | nindent 4 }}
+    {{- with $.Values.commonLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $.Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ $plugin.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "metis.plugin.selectorLabels" (dict "plugin" $plugin "global" $) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "metis.plugin.selectorLabels" (dict "plugin" $plugin "global" $) | nindent 8 }}
+        {{- with $.Values.commonLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $.Values.commonAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $plugin.serviceAccount }}
+      serviceAccountName: {{ $plugin.serviceAccount }}
+      {{- end }}
+      containers:
+        - name: {{ $plugin.name | default $plugin.workflow_type | lower }}
+          image: {{ $plugin.image }}
+          imagePullPolicy: {{ $plugin.imagePullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: grpc
+              containerPort: {{ $plugin.port | default 50051 }}
+              protocol: TCP
+          {{- if $plugin.env }}
+          env:
+            {{- range $env := $plugin.env }}
+            - name: {{ $env.name }}
+              {{- if $env.value }}
+              value: {{ $env.value | quote }}
+              {{- else if $env.valueFrom }}
+              valueFrom:
+                {{- toYaml $env.valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if $plugin.livenessProbe }}
+          livenessProbe:
+            {{- toYaml $plugin.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if $plugin.readinessProbe }}
+          readinessProbe:
+            {{- toYaml $plugin.readinessProbe | nindent 12 }}
+          {{- end }}
+          {{- if $plugin.resources }}
+          resources:
+            {{- toYaml $plugin.resources | nindent 12 }}
+          {{- end }}
+          {{- if $plugin.volumeMounts }}
+          volumeMounts:
+            {{- toYaml $plugin.volumeMounts | nindent 12 }}
+          {{- end }}
+      {{- if $plugin.volumes }}
+      volumes:
+        {{- toYaml $plugin.volumes | nindent 8 }}
+      {{- end }}
+      {{- if $plugin.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $plugin.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if $plugin.affinity }}
+      affinity:
+        {{- toYaml $plugin.affinity | nindent 8 }}
+      {{- end }}
+      {{- if $plugin.tolerations }}
+      tolerations:
+        {{- toYaml $plugin.tolerations | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}
