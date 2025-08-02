@@ -102,8 +102,6 @@ spec:
                 secretKeyRef:
                   name: {{ include "metis.mongodb.secretName" . }}
                   key: MONGO_PASSWORD
-            - name: METIS_METEL_STAGING_URL
-              value: {{ include "metis.staging.url" . | quote }}
             {{- range $key, $value := .Values.metis.config.metel.staging.parameters }}
             - name: METIS_METEL_STAGING_PARAMETERS_{{ $key }}
               valueFrom:

@@ -133,16 +133,6 @@ Return the MongoDB Workflow Collection
 {{/* MinIO access helper templates removed - using staging credentials instead */}}
 
 {{/*
-Return the Staging URL
-*/}}
-{{- define "metis.staging.url" -}}
-{{- if not .Values.metis.config.metel.staging.url }}
-{{- fail "metis.config.metel.staging.url is required when using external S3 storage" }}
-{{- end }}
-{{- .Values.metis.config.metel.staging.url -}}
-{{- end -}}
-
-{{/*
 Return the Staging Bucket
 */}}
 {{- define "metis.staging.bucket" -}}

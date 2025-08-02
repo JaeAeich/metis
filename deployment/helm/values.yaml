@@ -131,8 +131,6 @@ metis:
       staging:
         # -- The type of staging provider. Only "s3" is supported.
         type: "s3"
-        # -- The S3 endpoint URL.
-        url: ""
         # -- The name of the bucket to use for staging.
         bucket: ""
         # -- The prefix to use for staging within the bucket.
