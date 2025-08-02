@@ -144,6 +144,17 @@ metis:
           AWS_SECRET_ACCESS_KEY: ""
           AWS_REGION: ""
 
+    # -- Configuration for the execution backend.
+    executionBackend:
+      # -- The type of execution backend to use.
+      # Currently only "local" and "tes" are supported.
+      type: "local"
+      # -- The configuration for the TES backend.
+      tesConfig:
+        # -- The URL of the TES server.
+        # Example: "http://poiesis-api.poiesis.svc.cluster.local:8000/ga4gh/tes"
+        url: ""
+
   # -- Metis plugins configuration.
   # This section allows you to define the plugins that Metis will use.
   # The plugins are defined as an array of objects, where each object represents a single plugin.

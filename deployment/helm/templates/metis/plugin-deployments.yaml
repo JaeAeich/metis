@@ -40,7 +40,7 @@ spec:
       serviceAccountName: {{ $plugin.serviceAccount }}
       {{- end }}
       containers:
-        - name: {{ $plugin.name | default $plugin.workflow_type | lower }}-plugin
+        - name: {{ $plugin.name | default $plugin.workflow_type | lower }}
           image: {{ $plugin.image }}
           imagePullPolicy: {{ $plugin.imagePullPolicy | default "IfNotPresent" }}
           ports:

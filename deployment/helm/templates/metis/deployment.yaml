@@ -109,6 +109,12 @@ spec:
                   name: {{ include "metis.staging.secretName" $ }}
                   key: {{ $key }}
             {{- end }}
+            - name: METIS_EXECUTION_BACKEND_TYPE
+              value: {{ .Values.metis.config.executionBackend.type | quote }}
+            {{- if eq .Values.metis.config.executionBackend.type "tes" }}
+            - name: METIS_EXECUTION_BACKEND_TES_CONFIG_URL
+              value: {{ .Values.metis.config.executionBackend.tesConfig.url | quote }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
