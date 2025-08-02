@@ -16,7 +16,11 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if $plugin.service }}
   type: {{ $plugin.service.type | default "ClusterIP" }}
+  {{- else }}
+  type: ClusterIP
+  {{- end }}
   ports:
     - name: grpc
       protocol: TCP
