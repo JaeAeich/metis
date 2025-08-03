@@ -21,8 +21,7 @@ LABEL org.opencontainers.image.title="metis" \
       org.opencontainers.image.authors="Javed Habib" \
       org.opencontainers.image.vendor="Javed Habib" \
       org.opencontainers.image.url="https://github.com/jaeaeich/metis" \
-      org.opencontainers.image.documentation="https://github.com/jaeaeich/metis" \
-      org.opencontainers.image.contact="jae.eichhorn@gmail.com"
+      org.opencontainers.image.documentation="https://github.com/jaeaeich/metis"
 COPY --from=base /go/bin/metis /
 COPY --from=base /src/public /public
 HEALTHCHECK --interval=30s --timeout=3s \

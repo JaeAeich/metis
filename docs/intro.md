@@ -26,11 +26,12 @@ plugin-based system.
 Each workflow engine is supported through a dedicated plugin that communicates
 with Metis via a **gRPC contract**. This design provides several advantages:
 
-- **Isolation**: Each plugin operates independently, ensuring stability and reliability
-- **Modularity**: New workflow engines can be easily integrated through additional
-    plugins
+- **Isolation**: Each plugin operates independently, ensuring stability and
+  reliability
+- **Modularity**: New workflow engines can be easily integrated through
+  additional plugins
 - **Maintainability**: Engine-specific functionality is organized into focused,
-    purpose-built components
+  purpose-built components
 
 ## Architecture Overview
 
@@ -38,7 +39,7 @@ with Metis via a **gRPC contract**. This design provides several advantages:
 
 - **Metis**: The primary WES API server that handles client requests
 - **METEL**: Metis Execution and Translation Enrichment Layer - orchestrates
-    workflow execution
+  workflow execution
 - **WE**: Workflow Executor - the actual execution environment for workflows
 - **Plugin**: A gRPC server that provides engine-specific functionality
 
@@ -63,13 +64,12 @@ This ensures each workflow starts with a fresh, isolated environment.
 Once the workflow files are ready, Metel begins the **pre-launch lifecycle**:
 
 1. **Plugin Consultation**: Metel queries the appropriate engine plugin for
-    execution specifications
-2. **Context Provision**: The plugin receives comprehensive context including:
-    - Primary descriptor location (potentially from TRS API)
-    - Workflow parameters and configuration
-    - Execution environment details
-3. **Command Generation**: The plugin returns engine-specific execution
-    commands
+   execution specifications
+1. **Context Provision**: The plugin receives comprehensive context including:
+   - Primary descriptor location (potentially from TRS API)
+   - Workflow parameters and configuration
+   - Execution environment details
+1. **Command Generation**: The plugin returns engine-specific execution commands
 
 #### Phase 3: Workflow Execution
 
@@ -83,7 +83,8 @@ Metel orchestrates the actual workflow execution by:
 
 After execution completion, Metel initiates the **post-launch lifecycle**:
 
-1. **Log Aggregation**: All execution logs are uploaded to the remote staging area
-2. **Response Mapping**: The plugin translates engine-specific outputs to
-    WES-compliant responses
-3. **Result Delivery**: Standardized results are returned to the client
+1. **Log Aggregation**: All execution logs are uploaded to the remote staging
+   area
+1. **Response Mapping**: The plugin translates engine-specific outputs to
+   WES-compliant responses
+1. **Result Delivery**: Standardized results are returned to the client
