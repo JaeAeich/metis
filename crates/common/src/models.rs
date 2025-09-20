@@ -542,12 +542,24 @@ pub struct RunSummary {
 /// - `CANCELING`: The task was canceled by the user, and is in the process of stopping.
 /// - `PREEMPTED`: The task is stopped (preempted) by the system.
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, ToSchema,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Hash,
+    Serialize,
+    Deserialize,
+    ToSchema,
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum State {
     /// The state of the task is unknown. Safe default for missing fields.
     #[serde(rename = "UNKNOWN")]
+    #[default]
     Unknown,
     /// The task is queued and waiting for resources.
     #[serde(rename = "QUEUED")]
@@ -579,12 +591,6 @@ pub enum State {
     /// The task was preempted by the system.
     #[serde(rename = "PREEMPTED")]
     Preempted,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        State::Unknown
-    }
 }
 
 // Implement sqlx::Type for State to enable database storage

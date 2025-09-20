@@ -82,16 +82,16 @@ impl EngineRequestValidator {
             ));
         }
 
-        if let Some(ref requested_engine) = request.workflow_engine {
-            if !requested_engine.eq_ignore_ascii_case(&self.config.name) {
-                return Err(ValidationError::ValidationFailed(
-                    "workflow_engine".to_string(),
-                    format!(
-                        "Unsupported workflow_engine '{}'. Expected '{}'",
-                        requested_engine, self.config.name
-                    ),
-                ));
-            }
+        if let Some(ref requested_engine) = request.workflow_engine
+            && !requested_engine.eq_ignore_ascii_case(&self.config.name)
+        {
+            return Err(ValidationError::ValidationFailed(
+                "workflow_engine".to_string(),
+                format!(
+                    "Unsupported workflow_engine '{}'. Expected '{}'",
+                    requested_engine, self.config.name
+                ),
+            ));
         }
 
         if request.workflow_engine.is_none() && request.workflow_engine_version.is_some() {
@@ -101,16 +101,16 @@ impl EngineRequestValidator {
             ));
         }
 
-        if let Some(ref requested_version) = request.workflow_engine_version {
-            if requested_version != &self.config.version {
-                return Err(ValidationError::ValidationFailed(
-                    "workflow_engine_version".to_string(),
-                    format!(
-                        "Unsupported workflow_engine_version '{}'. Expected '{}'",
-                        requested_version, self.config.version
-                    ),
-                ));
-            }
+        if let Some(ref requested_version) = request.workflow_engine_version
+            && requested_version != &self.config.version
+        {
+            return Err(ValidationError::ValidationFailed(
+                "workflow_engine_version".to_string(),
+                format!(
+                    "Unsupported workflow_engine_version '{}'. Expected '{}'",
+                    requested_version, self.config.version
+                ),
+            ));
         }
 
         Ok(())
@@ -157,9 +157,7 @@ impl EngineRequestValidator {
         &self,
         params: Option<&HashMap<String, String>>,
     ) -> Option<HashMap<String, String>> {
-        let Some(params) = params else {
-            return None;
-        };
+        let params = params?;
 
         let Some(ref ignored) = self.config.ignored_params else {
             return Some(params.clone());
@@ -422,15 +420,15 @@ impl EngineRequestValidator {
             }
             serde_json::Value::Array(arr) => {
                 for item in arr {
-                    if let Some(s) = item.as_str() {
-                        if !allowed.contains(&s.to_string()) {
-                            return Err(ValidationError::ValidationFailed(
-                                name.to_string(),
-                                message.clone().unwrap_or_else(|| {
-                                    format!("All items must be one of: {}", allowed.join(", "))
-                                }),
-                            ));
-                        }
+                    if let Some(s) = item.as_str()
+                        && !allowed.contains(&s.to_string())
+                    {
+                        return Err(ValidationError::ValidationFailed(
+                            name.to_string(),
+                            message.clone().unwrap_or_else(|| {
+                                format!("All items must be one of: {}", allowed.join(", "))
+                            }),
+                        ));
                     }
                 }
             }
@@ -496,26 +494,26 @@ impl EngineRequestValidator {
                 )
             })?;
 
-        if let Some(min_val) = min {
-            if val_int < min_val {
-                return Err(ValidationError::ValidationFailed(
-                    name.to_string(),
-                    message
-                        .clone()
-                        .unwrap_or_else(|| format!("Must be >= {}", min_val)),
-                ));
-            }
+        if let Some(min_val) = min
+            && val_int < min_val
+        {
+            return Err(ValidationError::ValidationFailed(
+                name.to_string(),
+                message
+                    .clone()
+                    .unwrap_or_else(|| format!("Must be >= {}", min_val)),
+            ));
         }
 
-        if let Some(max_val) = max {
-            if val_int > max_val {
-                return Err(ValidationError::ValidationFailed(
-                    name.to_string(),
-                    message
-                        .clone()
-                        .unwrap_or_else(|| format!("Must be <= {}", max_val)),
-                ));
-            }
+        if let Some(max_val) = max
+            && val_int > max_val
+        {
+            return Err(ValidationError::ValidationFailed(
+                name.to_string(),
+                message
+                    .clone()
+                    .unwrap_or_else(|| format!("Must be <= {}", max_val)),
+            ));
         }
         Ok(())
     }
@@ -621,15 +619,13 @@ impl EngineRequestValidator {
                 })?;
 
                 let path = std::path::Path::new(val_str);
-                if path.exists() {
-                    if !path.is_dir() {
-                        return Err(ValidationError::ValidationFailed(
-                            name.to_string(),
-                            message
-                                .clone()
-                                .unwrap_or_else(|| "Path is not a directory".to_string()),
-                        ));
-                    }
+                if path.exists() && !path.is_dir() {
+                    return Err(ValidationError::ValidationFailed(
+                        name.to_string(),
+                        message
+                            .clone()
+                            .unwrap_or_else(|| "Path is not a directory".to_string()),
+                    ));
                     // TODO: Check if directory is actually writable
                     // This would require testing write permissions which may not be desired
                     // in validation phase
