@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
-
-members = ["crates/api", "crates/common", "crates/engine", "crates/plugins/nextflow"]
+members = ["crates/**"]
 
 [workspace.dependencies]
 tokio = { version = "1.47.2", features = ["full"] }
