@@ -16,8 +16,26 @@ collaboration across different groups, it is compliant with the GA4GH [WES](wes)
 standard, ensuring interoperability, and is highly extensible through its
 pluggable design.
 
-> [!NOTE]
-> Under development, docs will be published soon.
+> [!WARNING]
+> Under development
+
+## Design Philosophy
+
+Metis is built around a **core engine** that manages process
+lifecycle, validation, and execution orchestration. The engine defines a
+`trait-based` contract that workflow runners (Nextflow, Snakemake, CWL, etc.)
+implement, enabling seamless pluggability without modifying core logic.
+
+Configuration is externalized via `engine.yaml`, allowing operators to define
+command templates, parameter validation rules, and runtime behavior without
+code changes. The API layer is fully decoupled from execution, communicating
+through NATS/Valkey for async job submission and state tracking.
+
+This separation ensures:
+
+1. **Extensibility**: New engines implement a single trait
+2. **Configurability**: Validation and CLI building are template-driven
+3. **Resilience**: API and execution layers scale independently
 
 ## Versioning
 

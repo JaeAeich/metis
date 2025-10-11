@@ -1,63 +1,81 @@
-# Go
-export GOPATH=$(pwd)/.gopath
-export GOBIN=$(pwd)/bin
-export PATH=$GOBIN:$PATH
+# -----------------------------------------------------------------------------
+# Rust Toolchain & Developer Environment
+# -----------------------------------------------------------------------------
+export RUSTUP_TOOLCHAIN=1.88.0
+PATH_add ~/.cargo/bin
 
-# Metis common
-export METIS_ENVIRONMENT="dev"
-export METIS_LOG_LEVEL="info"
-export METIS_LOG_FORMAT="text"
+# -----------------------------------------------------------------------------
+# Build Configuration
+# -----------------------------------------------------------------------------
+# These versions ensure reproducible builds across environments
+export VERSION=0.1.0
+export RUST_VERSION=1.88.0
+export MIGRATE_VERSION=v4.17.0
+export NEXTFLOW_VERSION=23.10.1
 
-# Mongo
-export METIS_MONGO_HOST="localhost"
-export METIS_MONGO_PORT="27017"
-export METIS_MONGO_USERNAME="mongo"
-export METIS_MONGO_PASSWORD="password"
-export METIS_MONGO_DATABASE="metis"
-export METIS_MONGO_WORKFLOW_COLLECTION="workflows"
+# Build metadata (typically injected by CI/CD)
+export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+export GIT_REVISION=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+export BUILD_TARGET=release  # Options: debug, release
+export TARGET_ENV=tool
 
-# K8s
-export METIS_K8S_CONFIG_PATH="$HOME/.kube/config"
-export METIS_K8S_NAMESPACE="metis"
-export METIS_K8S_PVC_ACCESS_MODE=""
-export METIS_K8S_PVC_STORAGE_CLASS=""
-export METIS_K8S_COMMON_PVC_VOLUME_NAME="workflow-pvc"
-export METIS_K8S_RESTART_POLICY="Never"
-export METIS_K8S_IMAGE_PULL_POLICY="IfNotPresent"
-export METIS_K8S_JOB_TTL="300"
-export METIS_K8S_SECURITY_CONTEXT_ENABLED="false"
-export METIS_K8S_DEFAULT_PVC_SIZE="100Mi"
-export METIS_K8S_PVC_PREFIX="pvc"
-export METIS_K8S_METEL_PREFIX="metel"
-export METIS_K8S_IMAGE_NAME="jaeaeich/metis:latest"
-export METIS_K8S_WE_PREFIX="workflow-execution"
-export METIS_K8S_PLUGIN_CONFIG_MAP_NAME="metis-plugin-configmap"
-export METIS_K8S_SERVICE_ACCOUNT_NAME="metis-service-account"
+# -----------------------------------------------------------------------------
+# PostgreSQL Database Configuration
+# -----------------------------------------------------------------------------
+# Database credentials
+export POSTGRES_USER=metis_user
+export POSTGRES_PASSWORD=supersecretpassword
+export POSTGRES_DB=metis
+export POSTGRES_PORT=5432
 
-# Metis API
-export METIS_API_SERVER_PORT="8080"
-export METIS_API_SERVER_BASE_PATH="/ga4gh/wes/v1"
-export METIS_API_SWAGGER_PATH="/ui"
-export METIS_API_SWAGGER_TITLE="Metis API"
+# Full connection URL for application use
+export DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
 
-# Metel
-export METIS_METEL_STAGING_TYPE="s3"
-export METIS_METEL_STAGING_BUCKET="metis"
-export METIS_METEL_STAGING_PREFIX="workflows"
-export METIS_METEL_STAGING_URL=""
-# For map values like parameters, you can define them by exporting variables
-# with the parameter name as a suffix. Viper will automatically collect these
-# into a map, which are then passed as environment variables to the metel pod.
-# This is how you provide credentials and configuration for S3-compatible storage.
-#
-# Example for AWS S3:
-# The keys (e.g., AWS_ACCESS_KEY_ID) must be in all caps to be recognized by the AWS SDK.
-# export METIS_METEL_STAGING_PARAMETERS_AWS_ACCESS_KEY_ID="your-access-key"
-# export METIS_METEL_STAGING_PARAMETERS_AWS_SECRET_ACCESS_KEY="your-secret-key"
-# export METIS_METEL_STAGING_PARAMETERS_AWS_REGION="us-east-1"
-#
-# Example for MinIO or other S3-compatible storage:
-# export METIS_METEL_STAGING_PARAMETERS_AWS_ACCESS_KEY_ID="minioadmin"
-# export METIS_METEL_STAGING_PARAMETERS_AWS_SECRET_ACCESS_KEY="minioadmin"
-# export METIS_METEL_STAGING_PARAMETERS_AWS_REGION="us-east-1"
-# export METIS_METEL_STAGING_PARAMETERS_AWS_ENDPOINT_URL="http://minio.minio.svc.cluster.local:9000"
+# -----------------------------------------------------------------------------
+# NATS Message Broker Configuration
+# -----------------------------------------------------------------------------
+# NATS server connection
+export NATS_URL=nats://localhost:4222
+export NATS_CLIENT_PORT=4222
+export NATS_HTTP_PORT=8222
+
+# NATS subject/topic configuration
+export NATS_SUBJECT_PREFIX=metis.workflows
+
+# -----------------------------------------------------------------------------
+# Application Runtime Configuration
+# -----------------------------------------------------------------------------
+# API server settings
+export API_PORT=8080
+export API_HOST=0.0.0.0
+
+# Logging configuration
+export RUST_LOG=debug  # Options: error, warn, info, debug, trace
+export RUST_BACKTRACE=1  # Set to 1 to enable stack traces
+
+# -----------------------------------------------------------------------------
+# Plugin/Worker Configuration
+# -----------------------------------------------------------------------------
+# Nextflow plugin settings
+export NEXTFLOW_WORKER_CONCURRENCY=5
+export NEXTFLOW_REPLICAS=1
+
+# -----------------------------------------------------------------------------
+# Docker Compose Profile Selection
+# -----------------------------------------------------------------------------
+# Determines which services to run
+export COMPOSE_PROFILES=dev  # Options: dev, prod
+
+# Docker Compose project name (avoids conflicts with other projects)
+export COMPOSE_PROJECT_NAME=metis
+
+# -----------------------------------------------------------------------------
+# Development Helpers
+# -----------------------------------------------------------------------------
+# Color output for easier reading
+export CLICOLOR=1
+export CLICOLOR_FORCE=1
+
+# -----------------------------------------------------------------------------
+# End of .envrc
+# -----------------------------------------------------------------------------

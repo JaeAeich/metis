@@ -1,9 +1,323 @@
-# Ignore everything by default
-**
+# -----------------------------------------------------------------------------
+# Version Control & Git
+# -----------------------------------------------------------------------------
+.git/
+.gitignore
+.gitattributes
+.github/
+**/.git/
+**/.gitignore
 
-# Allow files and directories necessary for the build
-!/go.mod
-!/go.sum
-!/cmd/
-!/internal/
-!/public/
+# -----------------------------------------------------------------------------
+# Development Tools & Configuration
+# -----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Editor and IDE files
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+**/*~
+
+# -----------------------------------------------------------------------------
+# Documentation & Readme Files
+# -----------------------------------------------------------------------------
+*.md
+README*
+CHANGELOG*
+LICENSE*
+CONTRIBUTING*
+CODE_OF_CONDUCT*
+docs/
+documentation/
+**/*.md
+**/README*
+
+# -----------------------------------------------------------------------------
+# CI/CD & Deployment (except what we need)
+# -----------------------------------------------------------------------------
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+.drone.yml
+azure-pipelines.yml
+buildkite.yml
+jenkins/
+Jenkinsfile*
+
+# Keep deployment images directory for Docker builds
+!deployment/
+!deployment/images/
+!deployment/images/*.Dockerfile
+
+# Exclude helm and other deployment configs
+deployment/helm/
+deployment/k8s/
+deployment/terraform/
+deployment/ansible/
+
+# -----------------------------------------------------------------------------
+# Build Artifacts & Cache
+# -----------------------------------------------------------------------------
+target/
+**target/
+dist/
+build/
+out/
+bin/
+
+# Rust specific artifacts
+Cargo.lock.bak
+**/*.rs.bk
+**/*.orig
+
+# -----------------------------------------------------------------------------
+# Dependencies & Package Managers
+# -----------------------------------------------------------------------------
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+.pnp.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# -----------------------------------------------------------------------------
+# Testing & Coverage
+# -----------------------------------------------------------------------------
+test-results/
+coverage/
+*.lcov
+*.gcov
+.nyc_output/
+.coverage
+htmlcov/
+.pytest_cache/
+.cache/
+
+# Rust test artifacts
+tests/target/
+**/tests/target/
+
+# -----------------------------------------------------------------------------
+# Logs & Runtime Files
+# -----------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pids/
+*.pid
+*.seed
+*.pid.lock
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# -----------------------------------------------------------------------------
+# Temporary & Cache Files
+# -----------------------------------------------------------------------------
+tmp/
+temp/
+.tmp/
+.temp/
+*.tmp
+*.temp
+.cache/
+**/.cache/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.nfs*
+
+# -----------------------------------------------------------------------------
+# Database & Data Files
+# -----------------------------------------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+data/
+database/
+*.sql.gz
+*.dump
+
+# -----------------------------------------------------------------------------
+# Media & Large Files
+# -----------------------------------------------------------------------------
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.ico
+*.svg
+*.webp
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+*.wma
+
+# -----------------------------------------------------------------------------
+# Configuration & Secrets (Security)
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.template
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+config/secrets/
+**/*.secret
+**/*.private
+
+# -----------------------------------------------------------------------------
+# Docker & Container Files
+# -----------------------------------------------------------------------------
+# Exclude other Docker files to prevent recursive builds
+Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
+.dockerignore
+
+# Keep our specific Docker files
+!deployment/images/*.Dockerfile
+
+# -----------------------------------------------------------------------------
+# Backup & Archive Files
+# -----------------------------------------------------------------------------
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+*.swp
+*.swo
+*~
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+
+# -----------------------------------------------------------------------------
+# IDE & Editor Specific Files
+# -----------------------------------------------------------------------------
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+Session.vim
+
+# -----------------------------------------------------------------------------
+# Allow Essential Build Files
+# -----------------------------------------------------------------------------
+# Cargo workspace files
+!Cargo.toml
+!Cargo.lock
+
+# Source code directories
+!src/
+!crates/
+!crates/*/
+!crates/*/src/
+!crates/*/Cargo.toml
+!crates/*/**/*.rs
+
+# Migration files (if present)
+!migrations/
+!migrations/*.sql
+!migrations/*.up
+!migrations/*.down
+
+# Configuration templates and examples
+!config/
+!*.example
+!*.template
+!*.sample
+
+# Essential scripts
+!scripts/
+!*.sh
+!Makefile
+
+# Static assets (if minimal and required)
+!public/
+!static/
+!assets/
