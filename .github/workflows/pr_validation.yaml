@@ -1,62 +1,53 @@
----
-name: PR evaluation
+name: PR Validation
 
 on:
   pull_request:
-    types:
-      - opened
-      - edited
-      - ready_for_review
-      - synchronize
-      - reopened
-    branches:
-      - "**"
+    types: [opened, edited, ready_for_review, synchronize, reopened]
+    branches: ["**"]
 
 permissions:
   contents: read
   pull-requests: read
 
 jobs:
-  detect-unresolved-conflicts:
-    name: Detect unresolved merge conflicts
+  merge-conflicts:
+    name: Check merge conflicts
     runs-on: ubuntu-latest
     if: github.event.action != 'edited'
     steps:
-      - uses: actions/checkout@v3
-      - name: List files with merge conflict markers
-        run: git --no-pager grep "<<<<<<<" ":(exclude).github/" || true
-      - name: Fail or succeed job if any files with merge conflict markers
-        run: exit $(git grep "<<<<<<<" ":(exclude).github/" | wc --lines)
+      - uses: actions/checkout@v4
+      - name: Detect conflict markers
+        run: |
+          conflicts=$(git grep -l "<<<<<<<" ":(exclude).github/" 2>/dev/null || true)
+          if [ -n "$conflicts" ]; then
+            echo "Unresolved merge conflicts found:"
+            echo "$conflicts"
+            exit 1
+          fi
 
-  pre-commit:
-    name: Pre-commit checks
+  lint:
+    name: Lint & format check
     runs-on: ubuntu-latest
     if: github.event.action != 'edited'
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Harden-Runner
-        uses: step-security/harden-runner@v2.10.2
-
-      - name: Set up environment
-        uses: ./.github/actions/setup/uv
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          os: ${{ job.os }}
-          uv-sync-args: "--only-group misc"
-
-      - name: Check all the pre-commit hooks passed
-        run: uv run pre-commit run --all-files
+          python-version: "3.12"
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Run pre-commit
+        run: pre-commit run --all-files
 
   semantic-pr:
     name: Semantic PR title
     runs-on: ubuntu-latest
-    # yamllint disable rule:line-length
-    if: github.event.pull_request.draft != true && github.event.action != 'synchronize' && !startsWith(github.head_ref, 'main')
-    # yamllint enable rule:line-length
+    if: |
+      github.event.pull_request.draft != true &&
+      github.event.action != 'synchronize' &&
+      !startsWith(github.head_ref, 'main')
     steps:
-      - name: Check if the PR title is semantic
-        uses: amannn/action-semantic-pull-request@v5
+      - uses: amannn/action-semantic-pull-request@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -74,21 +65,4 @@ jobs:
             revert
           subjectPattern: ^(?![A-Z])(?=.{1,50}$).+$
           subjectPatternError: |
-            The subject "{subject}" found in the pull request title "{title}"
-            didn't match the configured pattern. Please ensure that the subject
-            doesn't start with an uppercase character & not have more than 50
-            characters.
-
-      - name: Check length of PR title
-        shell: bash
-        run: |
-          set -euxo pipefail
-          PR_TITLE="{{ github.event.pull_request.title }}"
-          TITLE_LENGTH=$(echo "$PR_TITLE" | wc -m)
-
-          if [ "$TITLE_LENGTH" -gt 50 ]; then
-            echo "The PR title is too long. Please keep it under 50 characters."
-            echo "Current length: $TITLE_LENGTH"
-            exit 1
-          fi
-...
+            Subject "{subject}" must not start with uppercase and be ≤50 chars.

@@ -1,0 +1,549 @@
+/**
+ * Brand-specific custom styling
+ * Using Metis logo colors: #D25D13, #472C15, #FEBB34, #F7A21C
+ */
+
+/* Animated background for home page */
+.Layout.is-home {
+    position: relative;
+    overflow: hidden;
+}
+
+.Layout.is-home::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 20% 80%, rgba(210, 93, 19, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(247, 162, 28, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(254, 187, 52, 0.08) 0%, transparent 50%);
+    animation: gradientShift 20s ease-in-out infinite;
+    z-index: -1;
+}
+
+@keyframes gradientShift {
+
+    0%,
+    100% {
+        transform: translateX(0) translateY(0) scale(1);
+    }
+
+    50% {
+        transform: translateX(-10px) translateY(-10px) scale(1.05);
+    }
+}
+
+/* Firefly particles */
+.Layout.is-home::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+        radial-gradient(2px 2px at 20px 30px, rgba(254, 187, 52, 0.8), transparent),
+        radial-gradient(2px 2px at 40px 70px, rgba(247, 162, 28, 0.6), transparent),
+        radial-gradient(1px 1px at 90px 40px, rgba(210, 93, 19, 0.7), transparent),
+        radial-gradient(1px 1px at 130px 80px, rgba(254, 187, 52, 0.5), transparent),
+        radial-gradient(2px 2px at 160px 30px, rgba(247, 162, 28, 0.8), transparent);
+    background-repeat: repeat;
+    background-size: 200px 100px;
+    animation: fireflies 15s linear infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes fireflies {
+    0% {
+        transform: translateY(0);
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100px);
+        opacity: 0.6;
+    }
+}
+
+/* Floating geometric shapes/blobs */
+.VPHero {
+    position: relative;
+}
+
+/* Blob 1 - Top Right */
+.VPHero::before {
+    content: '';
+    position: absolute;
+    top: 10%;
+    right: 10%;
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(45deg, rgba(210, 93, 19, 0.1), rgba(247, 162, 28, 0.1));
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    animation: float1 8s ease-in-out infinite;
+    z-index: -1;
+}
+
+/* Blob 2 - Bottom Left */
+.VPHero::after {
+    content: '';
+    position: absolute;
+    bottom: 10%;
+    left: 5%;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, rgba(254, 187, 52, 0.15), rgba(210, 93, 19, 0.1));
+    border-radius: 50% 20% 80% 30%;
+    animation: float2 10s ease-in-out infinite reverse;
+    z-index: -1;
+}
+
+/* Additional blobs using features section */
+.VPFeatures {
+    position: relative;
+}
+
+/* Blob 3 - Top Left */
+.VPFeatures::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: 8%;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(60deg, rgba(247, 162, 28, 0.12), rgba(254, 187, 52, 0.08));
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    animation: float3 12s ease-in-out infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Blob 4 - Center Right */
+.VPFeatures::after {
+    content: '';
+    position: absolute;
+    top: 20%;
+    right: 5%;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(120deg, rgba(210, 93, 19, 0.08), rgba(71, 44, 21, 0.06));
+    border-radius: 20% 80% 60% 40% / 70% 50% 30% 80%;
+    animation: float4 14s ease-in-out infinite reverse;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Additional blobs using home container */
+.VPContent.is-home {
+    position: relative;
+}
+
+/* Blob 5 - Large Background Center */
+.VPContent.is-home::before {
+    content: '';
+    position: absolute;
+    top: 30%;
+    left: 30%;
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(200deg, rgba(254, 187, 52, 0.06), rgba(247, 162, 28, 0.04));
+    border-radius: 40% 60% 80% 20% / 50% 70% 30% 50%;
+    animation: float5 16s ease-in-out infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Blob 6 - Small Bottom Right */
+.VPContent.is-home::after {
+    content: '';
+    position: absolute;
+    bottom: 10%;
+    right: 15%;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(300deg, rgba(210, 93, 19, 0.1), rgba(247, 162, 28, 0.08));
+    border-radius: 70% 30% 50% 50% / 40% 80% 20% 60%;
+    animation: float6 9s ease-in-out infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* More blobs using nav area */
+.VPNav {
+    position: relative;
+}
+
+/* Blob 7 - Top floating */
+.VPNav::before {
+    content: '';
+    position: absolute;
+    top: 50px;
+    left: 20%;
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(45deg, rgba(254, 187, 52, 0.15), rgba(247, 162, 28, 0.1));
+    border-radius: 50% 20% 80% 30%;
+    animation: float7 8s ease-in-out infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Blob 8 - Top right floating */
+.VPNav::after {
+    content: '';
+    position: absolute;
+    top: 80px;
+    right: 25%;
+    width: 25px;
+    height: 25px;
+    background: linear-gradient(135deg, rgba(210, 93, 19, 0.12), rgba(254, 187, 52, 0.08));
+    border-radius: 30% 70% 40% 60%;
+    animation: float8 10s ease-in-out infinite reverse;
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes float1 {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-20px) rotate(180deg);
+    }
+}
+
+@keyframes float2 {
+
+    0%,
+    100% {
+        transform: translateX(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateX(20px) rotate(-180deg);
+    }
+}
+
+@keyframes float3 {
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+    }
+
+    33% {
+        transform: translate(10px, -15px) rotate(120deg) scale(1.1);
+    }
+
+    66% {
+        transform: translate(-5px, 10px) rotate(240deg) scale(0.9);
+    }
+}
+
+@keyframes float4 {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(25px) rotate(-90deg);
+    }
+}
+
+@keyframes float5 {
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    25% {
+        transform: translate(-10px, -10px) rotate(90deg);
+    }
+
+    50% {
+        transform: translate(5px, -20px) rotate(180deg);
+    }
+
+    75% {
+        transform: translate(15px, 5px) rotate(270deg);
+    }
+}
+
+@keyframes float6 {
+
+    0%,
+    100% {
+        transform: translateX(0) rotate(0deg) scale(1);
+    }
+
+    50% {
+        transform: translateX(-15px) rotate(180deg) scale(1.2);
+    }
+}
+
+@keyframes float7 {
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    50% {
+        transform: translate(8px, -12px) rotate(-45deg);
+    }
+}
+
+@keyframes float8 {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg) scale(1);
+    }
+
+    50% {
+        transform: translateY(-10px) rotate(90deg) scale(1.1);
+    }
+}
+
+/* Enhanced hero section */
+.VPHero .main {
+    position: relative;
+    z-index: 1;
+}
+
+.VPHero .image {
+    position: relative;
+}
+
+.VPHero .image::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    background:
+        radial-gradient(circle at center, rgba(210, 93, 19, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: pulse 4s ease-in-out infinite;
+    z-index: -1;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+/* Logo and branding enhancements */
+.VPImage.logo {
+    transition: transform 0.3s ease;
+}
+
+.VPImage.logo:hover {
+    transform: scale(1.05);
+}
+
+/* Hero section enhancements */
+.VPHero .title {
+    background: linear-gradient(135deg, #D25D13, #F7A21C, #FEBB34);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s ease-in-out infinite alternate;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    100% {
+        background-position: 100% 50%;
+    }
+}
+
+/* Call-to-action button enhancements */
+.VPButton.brand {
+    background: linear-gradient(135deg, #D25D13, #F7A21C);
+    border: none;
+    box-shadow: 0 4px 15px rgba(210, 93, 19, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.VPButton.brand::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.VPButton.brand:hover::before {
+    left: 100%;
+}
+
+.VPButton.brand:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(210, 93, 19, 0.4);
+    background: linear-gradient(135deg, #E67B3A, #F9B543);
+}
+
+/* Feature cards styling */
+.VPFeature {
+    border: 1px solid rgba(210, 93, 19, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.VPFeature::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, #D25D13, #F7A21C, #FEBB34);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.VPFeature:hover::before {
+    transform: scaleX(1);
+}
+
+.VPFeature:hover {
+    border-color: rgba(210, 93, 19, 0.3);
+    box-shadow: 0 8px 25px rgba(210, 93, 19, 0.15);
+    transform: translateY(-3px);
+}
+
+/* Accent elements */
+.VPFeature .icon {
+    color: #D25D13;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(71, 44, 21, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #D25D13, #F7A21C);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #E67B3A, #F9B543);
+}
+
+/* Table styling */
+.vp-doc table th {
+    background-color: rgba(210, 93, 19, 0.1);
+    border-bottom: 2px solid #D25D13;
+}
+
+.vp-doc table tr:hover {
+    background-color: rgba(254, 187, 52, 0.05);
+}
+
+/* Code inline styling */
+.vp-doc :not(pre)>code {
+    background-color: rgba(210, 93, 19, 0.1);
+    color: #B54510;
+    border: 1px solid rgba(210, 93, 19, 0.2);
+}
+
+/* Blockquote styling */
+.vp-doc blockquote {
+    border-left: 4px solid #D25D13;
+    background: linear-gradient(90deg, rgba(210, 93, 19, 0.05), transparent);
+}
+
+/* Footer enhancements */
+.VPFooter {
+    border-top: 1px solid rgba(210, 93, 19, 0.2);
+}
+
+/* Dark mode adjustments */
+html.dark .VPHero .title {
+    background: linear-gradient(135deg, #E67B3A, #F9B543, #FEC955);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+html.dark .Layout.is-home::before {
+    background:
+        radial-gradient(circle at 20% 80%, rgba(210, 93, 19, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(247, 162, 28, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(254, 187, 52, 0.12) 0%, transparent 50%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .Layout.is-home::after {
+        background-size: 150px 80px;
+    }
+
+    .VPHero::before,
+    .VPHero::after,
+    .VPFeatures::before,
+    .VPFeatures::after,
+    .VPContent.is-home::before,
+    .VPContent.is-home::after,
+    .VPNav::before,
+    .VPNav::after {
+        display: none;
+    }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+
+    .Layout.is-home::before,
+    .Layout.is-home::after,
+    .VPHero::before,
+    .VPHero::after,
+    .VPHero .image::before,
+    .VPFeatures::before,
+    .VPFeatures::after,
+    .VPContent.is-home::before,
+    .VPContent.is-home::after,
+    .VPNav::before,
+    .VPNav::after {
+        animation: none;
+    }
+}

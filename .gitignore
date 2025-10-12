@@ -125,3 +125,10 @@ Cargo.lock
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/rust,visualstudiocode,intellij+all
+
+# VitePress
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
+# Node
+node_modules/

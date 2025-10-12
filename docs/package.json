@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "vitepress": "^1.6.3",
+    "@catppuccin/vitepress": "^0.1.0",
+    "@ibm/plex": "^6.4.1"
+  },
+  "devDependencies": {
+    "mermaid": "^11.12.0",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  },
+  "scripts": {
+    "docs:dev": "vitepress dev --host 127.0.0.1 --port 4173 --strictPort",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview --host 127.0.0.1 --port 4174 --strictPort"
+  }
+}
