@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use chrono::{DateTime, Utc};
-use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
+use common::configs::FullEngineConfig;
 use common::models::{RunRequestMessage, RunSummary, State, TaskListResponse, ValidatedRunRequest};
 use futures::StreamExt;
 use serde::Deserialize;
@@ -13,7 +13,8 @@ use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-use crate::clients::{Nats, Valkey};
+use crate::clients::db::Stream;
+use crate::clients::{Db, Nats, Valkey};
 use crate::command::EngineCommandBuilder;
 use crate::dry_run::DryRunReport;
 use crate::engine::Engine;
@@ -39,6 +40,7 @@ pub struct EngineRuntime {
     config: Arc<FullEngineConfig>,
     valkey: Option<Arc<Valkey>>,
     nats: Option<Arc<Nats>>,
+    db: Option<Arc<Db>>,
     command_builder: Arc<EngineCommandBuilder>,
     pid_store: PidStore,
     cancelled_runs: Arc<RwLock<HashSet<Uuid>>>,
@@ -51,39 +53,32 @@ struct CancelRunMessage {
 }
 
 impl EngineRuntime {
-    pub async fn new(
+    pub fn new(
         engine: Arc<dyn Engine>,
         config: FullEngineConfig,
-        nats_config: Option<NatsConfig>,
-        valkey_config: Option<ValkeyConfig>,
+        nats: Option<Arc<Nats>>,
+        valkey: Option<Arc<Valkey>>,
+        db: Option<Arc<Db>>,
         dry_run: bool,
-    ) -> EngineResult<Self> {
+    ) -> Self {
         let command_builder = Arc::new(EngineCommandBuilder::new(Arc::new(config.engine.clone())));
-
-        let valkey = if let Some(valkey_config) = valkey_config {
-            Some(Arc::new(Valkey::new(valkey_config, config.engine.clone(), 60).await?))
-        } else {
-            None
-        };
-
-        let nats = if let Some(nats_config) = nats_config {
-            Some(Arc::new(Nats::new(&nats_config, config.engine.clone()).await?))
-        } else {
-            None
-        };
-
         let pid_store = PidStore::new(valkey.clone());
 
-        Ok(Self {
+        Self {
             engine,
             config: Arc::new(config),
             valkey,
             nats,
+            db,
             command_builder,
             pid_store,
             cancelled_runs: Arc::new(RwLock::new(HashSet::new())),
             dry_run,
-        })
+        }
+    }
+
+    pub fn db(&self) -> Option<&Arc<Db>> {
+        self.db.as_ref()
     }
 
     pub async fn start(self: Arc<Self>) -> EngineResult<()> {
@@ -190,6 +185,12 @@ impl EngineRuntime {
                 }
             },
             Err(e) => {
+                if let Some(db) = &self.db
+                    && let Err(db_err) =
+                        db.finalize_run(&run_id.to_string(), State::SystemError, Utc::now()).await
+                {
+                    warn!(run_id = %run_id, error = %db_err, "Failed to record failed run in database");
+                }
                 if let Some(nats) = &self.nats {
                     let event = serde_json::json!({
                         "event": "run_failed",
@@ -302,6 +303,13 @@ impl EngineRuntime {
         span.record("state", "initializing");
         WorkdirManager::setup(&ctx.workdir).await?;
 
+        if let Some(db) = &self.db
+            && let Err(e) =
+                db.insert_run(&ctx.run_id.to_string(), &ctx.user_id, &req, started_at).await
+        {
+            warn!(run_id = %ctx.run_id, error = %e, "Failed to insert run into database");
+        }
+
         // Step 2: Build execution command
         span.record("state", "building");
         let build_context = self.create_build_context(&ctx).await?;
@@ -365,9 +373,29 @@ impl EngineRuntime {
         self.pid_store.store(&ctx.run_id.to_string(), pid).await?;
         info!(pid = pid, "Workflow process started");
 
+        if let Some(db) = &self.db
+            && let Err(e) = db.update_run_state(&ctx.run_id.to_string(), State::Running).await
+        {
+            warn!(run_id = %ctx.run_id, error = %e, "Failed to update run state to RUNNING");
+        }
+
         // Step 4: Monitor execution (this blocks until completion or cancellation)
         span.record("state", "running");
-        let execution_output = ProcessExecutor::monitor(child_process).await?;
+        let line_callback: Arc<dyn Fn(Stream, u64, String) + Send + Sync + 'static> = {
+            let db = self.db.clone();
+            let run_id = ctx.run_id.to_string();
+            Arc::new(move |stream, seq, line| {
+                if let Some(db) = db.clone() {
+                    let run_id = run_id.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = db.insert_log_line(&run_id, stream, seq, &line).await {
+                            warn!(run_id = %run_id, seq = seq, error = %e, "Failed to stream log line to DB");
+                        }
+                    });
+                }
+            })
+        };
+        let execution_output = ProcessExecutor::monitor(child_process, line_callback).await?;
         let exit_status = execution_output.exit_status;
 
         if self.is_run_cancelled(&ctx.run_id).await {
@@ -494,20 +522,31 @@ impl EngineRuntime {
     async fn update_database(
         &self,
         ctx: &ExecutionContext,
-        _run_summary: &RunSummary,
-        _run_log: &common::models::Log,
-        _task_logs: &TaskListResponse,
+        run_summary: &RunSummary,
+        run_log: &common::models::Log,
+        task_logs: &TaskListResponse,
     ) -> Result<(), EngineError> {
-        info!(run_id = %ctx.run_id, "Updating database with execution results");
+        let Some(db) = &self.db else {
+            return Ok(());
+        };
 
-        // TODO: Implement database updates
-        // This would typically:
-        // 1. Insert/update run summary in runs table
-        // 2. Insert/update run log in run_logs table
-        // 3. Insert task logs in task_logs table
-        // 4. Update any other relevant tables
+        let state = run_summary.state.unwrap_or(State::Unknown);
+        let end_time = Utc::now();
 
-        info!("Database update completed (TODO: implement actual DB operations)");
+        if let Err(e) = db.finalize_run(&ctx.run_id.to_string(), state, end_time).await {
+            warn!(run_id = %ctx.run_id, error = %e, "Failed to finalize run in database");
+        }
+
+        if let Err(e) = db.insert_run_log(&ctx.run_id.to_string(), run_log).await {
+            warn!(run_id = %ctx.run_id, error = %e, "Failed to insert run log");
+        }
+
+        if let Some(tasks) = &task_logs.task_logs
+            && let Err(e) = db.insert_task_logs(&ctx.run_id.to_string(), tasks).await
+        {
+            warn!(run_id = %ctx.run_id, error = %e, "Failed to insert task logs");
+        }
+
         Ok(())
     }
 

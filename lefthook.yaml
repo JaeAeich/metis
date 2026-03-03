@@ -38,6 +38,11 @@ pre-commit:
       run: mise x -- typos
       stage_fixed: true
 
+    sqlfluff:
+      glob: "**/*.sql"
+      run: mise x -- sqlfluff fix --dialect postgres {staged_files}
+      stage_fixed: true
+
 commit-msg:
   commands:
     commitlint:
