@@ -39,7 +39,12 @@ function escapeHtml(str) {
 
 function escapeAttr(str) {
   if (!str) return "";
-  return str.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function truncate(str, maxLen = 40) {
@@ -200,7 +205,7 @@ function renderTasks(data) {
   tbody.innerHTML = html;
 }
 
-function _showTab(tabName) {
+function _showTab(tabName, btn) {
   document.querySelectorAll(".tab-content").forEach((el) => {
     el.classList.remove("active");
   });
@@ -209,7 +214,7 @@ function _showTab(tabName) {
   });
 
   document.getElementById(`tab-${tabName}`).classList.add("active");
-  event.target.classList.add("active");
+  btn.classList.add("active");
 
   if (tabName === "logs" && !logsEventSource) {
     connectLogs();

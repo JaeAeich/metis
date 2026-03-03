@@ -20,5 +20,5 @@ RUN cargo build --release --bin metis-api
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /app/target/release/metis-api /usr/local/bin/
-EXPOSE 3000
+EXPOSE 8080
 CMD ["metis-api"]

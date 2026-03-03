@@ -22,9 +22,11 @@
       <div id="run-header" class="run-header"></div>
 
       <div class="tabs">
-        <button type="button" class="tab-btn active" onclick="showTab('overview')">Overview</button>
-        <button type="button" class="tab-btn" onclick="showTab('tasks')">Tasks</button>
-        <button type="button" class="tab-btn" onclick="showTab('logs')">Logs</button>
+        <button type="button" class="tab-btn active" onclick="showTab('overview', this)">
+          Overview
+        </button>
+        <button type="button" class="tab-btn" onclick="showTab('tasks', this)">Tasks</button>
+        <button type="button" class="tab-btn" onclick="showTab('logs', this)">Logs</button>
       </div>
 
       <div id="tab-overview" class="tab-content active">

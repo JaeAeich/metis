@@ -43,10 +43,9 @@ pub async fn list_log_lines(
     State(app): State<AppState>,
     Path(run_id): Path<String>,
     Query(params): Query<LogPageParams>,
-    Query(stream_filter): Query<StreamFilter>,
 ) -> ApiResult<Json<LogLineListResponse>> {
     let id = RunId::new(run_id);
-    let stream = stream_filter.stream.as_ref().and_then(|s| s.parse().ok());
+    let stream = params.stream.as_ref().and_then(|s| s.parse().ok());
     let page_size = params.page_size();
 
     let result = app.services.logs.find_lines(&id, stream, params.after_seq, page_size).await?;
@@ -69,12 +68,8 @@ pub async fn list_log_lines(
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
-pub struct StreamFilter {
+pub struct StreamParams {
     pub stream: Option<String>,
-}
-
-#[derive(Debug, Deserialize, utoipa::IntoParams)]
-pub struct AfterSeq {
     pub after_seq: Option<i64>,
 }
 
@@ -84,8 +79,7 @@ pub struct AfterSeq {
     tag = "Runs",
     params(
         ("run_id" = String, Path, description = "Workflow run ID"),
-        StreamFilter,
-        AfterSeq
+        StreamParams
     ),
     responses(
         (status = 200, description = "SSE stream of log lines", content_type = "text/event-stream"),
@@ -96,16 +90,15 @@ pub struct AfterSeq {
 pub async fn stream_log_lines(
     State(app): State<AppState>,
     Path(run_id): Path<String>,
-    Query(stream_filter): Query<StreamFilter>,
-    Query(after_seq): Query<AfterSeq>,
+    Query(params): Query<StreamParams>,
 ) -> ApiResult<Sse<impl futures::Stream<Item = Result<Event, std::convert::Infallible>>>> {
     let id = RunId::new(run_id.clone());
-    let stream_type = stream_filter.stream.as_ref().and_then(|s| s.parse().ok());
+    let stream_type = params.stream.as_ref().and_then(|s| s.parse().ok());
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, std::convert::Infallible>>(100);
 
     tokio::spawn(async move {
-        let mut current_seq = after_seq.after_seq.unwrap_or(0);
+        let mut current_seq = params.after_seq.unwrap_or(0);
 
         loop {
             match app.services.logs.find_lines(&id, stream_type, Some(current_seq), 50).await {
