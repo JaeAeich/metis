@@ -25,6 +25,7 @@ pre-commit:
       stage_fixed: true
 
     rustfmt:
+      glob: "**/*.rs"
       run: cargo +nightly fmt
       stage_fixed: true
 

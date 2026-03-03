@@ -197,6 +197,7 @@ async fn test_valkey_register_and_heartbeat() -> EngineResult<()> {
                 key_value_format: None,
                 format: None,
                 file_path: None,
+                params_file_flag: None,
             },
         },
         engine_params: EngineParamsConfig {
@@ -325,6 +326,7 @@ async fn test_valkey_add_and_remove_run() -> EngineResult<()> {
                 key_value_format: None,
                 format: None,
                 file_path: None,
+                params_file_flag: None,
             },
         },
         engine_params: EngineParamsConfig {

@@ -1,12 +1,32 @@
 [shell_alias]
 mr = "mise run"
 
+[tasks.bench]
+description = "Run benchmarks with criterion"
+run = "cargo criterion"
+
+[tasks.check]
+alias = [ "c" ]
+depends = [ "format", "lefthook", "lint" ]
+description = "Run all code quality checks"
+run = "echo 'All checks passed'"
+
 [tasks.format]
 alias = [ "f" ]
+description = "Format Rust code"
+run = "cargo +nightly fmt"
+
+[tasks.lefthook]
 description = "Run repo hygiene on all files"
 run = "lefthook run pre-commit --all-files"
 
+[tasks.lint]
+alias = [ "l" ]
+description = "Run clippy linter"
+run = "cargo clippy --all-targets --all-features -- -D warnings"
+
 [tools]
+"cargo:cargo-criterion" = "1.1.0"
 lefthook = "2.1.1"
 "npm:@commitlint/cli" = "20.4.1"
 "npm:@commitlint/config-conventional" = "20.4.1"

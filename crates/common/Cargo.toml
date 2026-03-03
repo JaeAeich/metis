@@ -1,13 +1,11 @@
 [dependencies]
 envy = { workspace = true }
-redis = { workspace = true }
 regex = "1.12.2"
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 thiserror = "2.0.17"
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 
