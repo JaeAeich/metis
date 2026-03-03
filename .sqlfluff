@@ -1,0 +1,9 @@
+[sqlfluff]
+dialect = postgres
+max_line_length = 120
+indent_unit = spaces
+tab_space_size = 4
+exclude_rules = RF04
+
+[sqlfluff:rules:aliasing.table]
+aliasing = explicit

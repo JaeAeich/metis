@@ -11,7 +11,7 @@ run = "cargo criterion"
 
 [tasks.check]
 alias = [ "c" ]
-depends = [ "format", "lefthook", "lint" ]
+depends = [ "format", "lefthook", "lint", "lint-sql" ]
 description = "Run all code quality checks"
 run = "echo 'All checks passed'"
 
@@ -28,6 +28,11 @@ run = "lefthook run pre-commit --all-files"
 alias = [ "l" ]
 description = "Run clippy linter"
 run = "cargo clippy --all-targets --all-features -- -D warnings"
+
+[tasks.lint-sql]
+alias = [ "ls" ]
+description = "Lint SQL migrations with sqlfluff"
+run = "mise x -- sqlfluff lint --dialect postgres migrations/"
 
 [tasks.migrate-create]
 alias = "mc"
@@ -49,6 +54,7 @@ lefthook = "2.1.1"
 "npm:@commitlint/config-conventional" = "20.4.1"
 "npm:eclint" = "2.8.1"
 "npm:markdownlint-cli" = "0.47.0"
+"pipx:sqlfluff" = "4.0.4"
 "pipx:toml-sort" = "0.23.1"
 rust = "1.93.1"
 shfmt = "3.12.0"

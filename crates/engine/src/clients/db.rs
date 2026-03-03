@@ -122,14 +122,16 @@ impl Db {
 
         sqlx::query!(
             r#"
-            INSERT INTO run_logs (run_id, name, cmd, start_time, end_time, exit_code, system_logs)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO run_logs (run_id, name, cmd, start_time, end_time, stdout, stderr, exit_code, system_logs)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             "#,
             run_id,
             log.name,
             cmd,
             start_time,
             end_time,
+            log.stdout,
+            log.stderr,
             log.exit_code,
             system_logs,
         )

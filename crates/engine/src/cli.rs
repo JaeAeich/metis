@@ -267,13 +267,29 @@ async fn run_single_workflow<E: Engine + 'static>(
     let runtime = EngineRuntime::new(Arc::new(engine), config, None, None, db, dry_run);
 
     let run_id = Uuid::now_v7();
-    let summary = runtime.run(run_id, "cli".to_string(), validated_request).await?;
-
-    info!(
-        run_id = %summary.run_id,
-        state = ?summary.state,
-        "Workflow execution finished"
-    );
+    match runtime.run(run_id, "cli".to_string(), validated_request).await {
+        Ok(summary) => {
+            info!(
+                run_id = %summary.run_id,
+                state = ?summary.state,
+                "Workflow execution finished"
+            );
+        },
+        Err(e) => {
+            if let Some(db) = runtime.db()
+                && let Err(db_err) = db
+                    .finalize_run(
+                        &run_id.to_string(),
+                        common::models::State::SystemError,
+                        chrono::Utc::now(),
+                    )
+                    .await
+            {
+                warn!(run_id = %run_id, error = %db_err, "Failed to record failed run in database");
+            }
+            return Err(e);
+        },
+    }
     Ok(())
 }
 
