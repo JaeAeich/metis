@@ -1,0 +1,14 @@
+[[bin]]
+name = "metis-engine-generic"
+path = "src/main.rs"
+
+[dependencies]
+async-trait = "0.1"
+common = { path = "../../common" }
+engine = { path = "../../engine" }
+tokio = { workspace = true }
+
+[package]
+edition = "2024"
+name = "metis-engine-generic"
+version = "0.1.0"

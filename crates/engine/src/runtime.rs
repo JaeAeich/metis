@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 use crate::clients::{Nats, Valkey};
 use crate::command::EngineCommandBuilder;
+use crate::dry_run::DryRunReport;
 use crate::engine::Engine;
 use crate::error::{EngineError, EngineResult};
 use crate::execution::ProcessExecutor;
@@ -329,12 +330,25 @@ impl EngineRuntime {
 
         // DRY RUN MODE: Print command and exit
         if self.dry_run {
-            self.print_dry_run_summary(&ctx, &command_info, &req);
+            let tags = req.tags.clone();
+
+            DryRunReport {
+                run_id: ctx.run_id,
+                user_id: ctx.user_id.clone(),
+                workflow_url: ctx.workflow_url.clone(),
+                workflow_type: req.workflow_type.clone(),
+                workflow_type_version: req.workflow_type_version.clone(),
+                workdir: ctx.workdir.clone(),
+                subdirs: ctx.subdirs.clone(),
+                command_info,
+                request: req,
+            }
+            .print();
 
             return Ok(RunSummary {
                 run_id: ctx.run_id.to_string(),
                 state: Some(State::Complete),
-                tags: req.tags.unwrap_or_default(),
+                tags: tags.unwrap_or_default(),
                 start_time: Some(ctx.started_at.to_rfc3339()),
                 end_time: Some(Utc::now().to_rfc3339()),
             });
@@ -384,111 +398,6 @@ impl EngineRuntime {
         );
 
         Ok(run_summary)
-    }
-
-    fn print_dry_run_summary(
-        &self,
-        ctx: &ExecutionContext,
-        command_info: &CommandInfo,
-        req: &ValidatedRunRequest,
-    ) {
-        println!();
-        println!("{}", "═".repeat(70));
-        println!("DRY RUN - NoopEngine");
-        println!("{}", "═".repeat(70));
-        println!();
-        println!("Run ID:         {}", ctx.run_id);
-        println!("User ID:        {}", ctx.user_id);
-        println!("Workflow URL:   {}", ctx.workflow_url);
-        println!("Workflow Type:  {} {}", req.workflow_type, req.workflow_type_version);
-        println!();
-        println!("Staging Area:");
-        println!("  workdir:   {}", ctx.workdir);
-        for (name, path) in &ctx.subdirs {
-            println!("  {}:   {}", name, path);
-        }
-        println!();
-        println!("{}", "─".repeat(70));
-        println!("COMMAND (would execute):");
-        println!("{}", "─".repeat(70));
-        println!();
-
-        // Print command with nice formatting
-        let cmd = &command_info.command;
-        if cmd.len() > 80 {
-            // Try to break at logical points
-            let parts: Vec<&str> = cmd.split(" \\").collect();
-            if parts.len() > 1 {
-                println!("cd {} && \\", command_info.workdir);
-                for part in parts {
-                    println!("  {}", part.trim());
-                }
-            } else {
-                println!("cd {} && {}", command_info.workdir, cmd);
-            }
-        } else {
-            println!("cd {} && {}", command_info.workdir, cmd);
-        }
-
-        // Print environment variables if any
-        if !command_info.env_vars.is_empty() {
-            println!();
-            println!("Environment Variables:");
-            for (k, v) in &command_info.env_vars {
-                // Check if this is a sensitive value
-                let is_sensitive = req
-                    .workflow_engine_parameters
-                    .as_ref()
-                    .map(|params| {
-                        params
-                            .iter()
-                            .any(|p| p.spec.env_var.as_deref() == Some(k) && p.spec.sensitive)
-                    })
-                    .unwrap_or(false);
-
-                if is_sensitive {
-                    println!("  {}=***REDACTED***", k);
-                } else {
-                    println!("  {}={}", k, v);
-                }
-            }
-        }
-
-        // Print workflow params
-        if let Some(ref params) = req.workflow_params {
-            println!();
-            println!("Workflow Parameters:");
-            if let Some(obj) = params.as_object() {
-                for (k, v) in obj {
-                    println!("  {} = {}", k, v);
-                }
-            }
-        }
-
-        // Print engine params
-        if let Some(ref params) = req.workflow_engine_parameters {
-            println!();
-            println!("Engine Parameters:");
-            for p in params {
-                let value_str = match &p.value {
-                    Some(v) => v.to_string(),
-                    None => "(default)".to_string(),
-                };
-                let sensitive_marker = if p.spec.sensitive { " [SENSITIVE]" } else { "" };
-                println!(
-                    "  {} = {}{}",
-                    p.spec.names.first().unwrap_or(&String::new()),
-                    value_str,
-                    sensitive_marker
-                );
-            }
-        }
-
-        println!();
-        println!("{}", "═".repeat(70));
-        println!("DRY RUN COMPLETE - No actual execution performed");
-        println!("{}", "═".repeat(70));
-        println!();
     }
 
     /// Cancel a running workflow - FINAL, cannot be overridden

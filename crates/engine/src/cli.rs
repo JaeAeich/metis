@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -7,19 +8,17 @@ use common::configs::{
 };
 use common::models::RunRequest;
 use common::validators::EngineRequestValidator;
-use engine::{EngineError, EngineResult, EngineRuntime, NoopEngine};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-#[derive(Parser)]
-#[command(name = "metis-engine")]
-#[command(about = "Metis Workflow Execution Engine")]
-#[command(version = env!("CARGO_PKG_VERSION"))]
-struct Cli {
-    /// Configuration file path
-    #[arg(long, short = 'c', value_name = "FILE")]
-    config: Option<PathBuf>,
+use crate::engine::Engine;
+use crate::error::{EngineError, EngineResult};
+use crate::runtime::EngineRuntime;
 
+#[derive(Parser)]
+#[command(about = "Metis Workflow Execution Engine")]
+#[command(version)]
+struct Cli {
     /// Log level (trace, debug, info, warn, error)
     #[arg(long, default_value = "info")]
     log_level: String,
@@ -47,6 +46,10 @@ enum Commands {
         /// Engine configuration file
         #[arg(long, value_name = "FILE")]
         engine_config: Option<PathBuf>,
+
+        /// Perform a dry run (validate without executing)
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Start the engine server
     Server {
@@ -64,31 +67,28 @@ enum Commands {
     },
 }
 
-#[tokio::main]
-async fn main() -> EngineResult<()> {
+/// Parse CLI args, init logging, and dispatch to `run` or `server` subcommand.
+pub async fn run_cli<E: Engine + 'static>(engine: E) -> EngineResult<()> {
     let cli = Cli::parse();
 
-    // Initialize logging
     init_logging(&cli.log_level, cli.json_logging)?;
 
-    info!("Starting Metis Engine v{}", env!("CARGO_PKG_VERSION"));
+    info!("Starting Metis Engine");
 
     match cli.command {
-        Commands::Run { request, file, engine_config } => {
-            run_single_workflow(request, file, engine_config).await?;
+        Commands::Run { request, file, engine_config, dry_run } => {
+            run_single_workflow(engine, request, file, engine_config, dry_run).await?;
         },
         Commands::Server { engine_config, nats_url, notification_subject } => {
             let nats_config = NatsConfig { url: nats_url, notification_subject };
-
-            run_server(engine_config, nats_config).await?;
+            run_server(engine, engine_config, nats_config).await?;
         },
     }
 
     Ok(())
 }
 
-/// Initialize logging based on configuration
-fn init_logging(log_level: &str, json_logging: bool) -> EngineResult<()> {
+pub fn init_logging(log_level: &str, json_logging: bool) -> EngineResult<()> {
     let level = match log_level.to_lowercase().as_str() {
         "trace" => tracing::Level::TRACE,
         "debug" => tracing::Level::DEBUG,
@@ -117,8 +117,7 @@ fn init_logging(log_level: &str, json_logging: bool) -> EngineResult<()> {
     Ok(())
 }
 
-/// Load engine configuration from file or use default
-async fn load_engine_config(config_path: Option<PathBuf>) -> EngineResult<FullEngineConfig> {
+pub async fn load_engine_config(config_path: Option<PathBuf>) -> EngineResult<FullEngineConfig> {
     match config_path {
         Some(path) => {
             info!(config_path = %path.display(), "Loading engine configuration");
@@ -161,7 +160,7 @@ async fn load_engine_config(config_path: Option<PathBuf>) -> EngineResult<FullEn
     }
 }
 
-fn wrap_engine_config(engine: EngineConfig) -> FullEngineConfig {
+pub fn wrap_engine_config(engine: EngineConfig) -> FullEngineConfig {
     FullEngineConfig {
         version: "1.0.0".to_string(),
         engine,
@@ -169,7 +168,7 @@ fn wrap_engine_config(engine: EngineConfig) -> FullEngineConfig {
             workdir: WorkdirConfig {
                 base: "/tmp/wes_runs".to_string(),
                 pattern: "{user_id}/{run_id}".to_string(),
-                subdirs: Some(std::collections::HashMap::from([
+                subdirs: Some(HashMap::from([
                     ("logs".to_string(), "logs".to_string()),
                     ("outputs".to_string(), "outputs".to_string()),
                     ("work".to_string(), "work".to_string()),
@@ -184,8 +183,7 @@ fn wrap_engine_config(engine: EngineConfig) -> FullEngineConfig {
     }
 }
 
-/// Parse WES request from JSON string or file
-async fn parse_wes_request(
+pub async fn parse_wes_request(
     request_json: Option<String>,
     file_path: Option<PathBuf>,
 ) -> EngineResult<RunRequest> {
@@ -225,15 +223,15 @@ async fn parse_wes_request(
     Ok(request)
 }
 
-/// Run a single workflow execution
-async fn run_single_workflow(
+async fn run_single_workflow<E: Engine + 'static>(
+    engine: E,
     request_json: Option<String>,
     file_path: Option<PathBuf>,
     engine_config_path: Option<PathBuf>,
+    dry_run: bool,
 ) -> EngineResult<()> {
     info!("Running single workflow execution");
 
-    // Load configuration and request
     let config = load_engine_config(engine_config_path).await?;
     let request = parse_wes_request(request_json, file_path).await?;
 
@@ -243,7 +241,6 @@ async fn run_single_workflow(
         "Loaded engine configuration"
     );
 
-    // Validate request
     let validator = EngineRequestValidator::new(config.engine.clone());
     let validated_request = validator
         .validate(&request)
@@ -251,15 +248,7 @@ async fn run_single_workflow(
 
     info!("WES request validation passed");
 
-    // Create runtime with dry_run=true for NoopEngine
-    let runtime = EngineRuntime::new(
-        Arc::new(NoopEngine),
-        config,
-        None, // no NATS
-        None, // no Valkey
-        true, // dry_run = true
-    )
-    .await?;
+    let runtime = EngineRuntime::new(Arc::new(engine), config, None, None, dry_run).await?;
 
     let run_id = Uuid::now_v7();
     let summary = runtime.run(run_id, "cli".to_string(), validated_request).await?;
@@ -272,14 +261,13 @@ async fn run_single_workflow(
     Ok(())
 }
 
-/// Run the engine server (NATS consumer)
-async fn run_server(
+async fn run_server<E: Engine + 'static>(
+    engine: E,
     engine_config_path: Option<PathBuf>,
     nats_config: NatsConfig,
 ) -> EngineResult<()> {
     info!("Starting engine server");
 
-    // Load engine configuration
     let config = load_engine_config(engine_config_path).await?;
 
     info!(
@@ -290,8 +278,8 @@ async fn run_server(
         "Engine server configuration loaded"
     );
 
-    // Start the server
-    if let Err(e) = engine::server::start_server(config, nats_config).await {
+    let valkey_config = common::configs::ValkeyConfig::from_env();
+    if let Err(e) = crate::server::bootstrap(engine, config, nats_config, valkey_config).await {
         error!("Server failed: {}", e);
         return Err(EngineError::Execution(format!("Server failed: {}", e)));
     }
@@ -304,6 +292,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[allow(clippy::unwrap_used)]
     async fn test_parse_wes_request_from_json() {
         let request_json = serde_json::json!({
             "workflow_type": "CWL",
@@ -312,17 +301,14 @@ mod tests {
         })
         .to_string();
 
-        let result = parse_wes_request(Some(request_json), None).await;
-        assert!(result.is_ok());
-
-        let request = result.unwrap();
+        let request = parse_wes_request(Some(request_json), None).await.unwrap();
         assert_eq!(request.workflow_type, "CWL");
         assert_eq!(request.workflow_url, "https://example.com/workflow.cwl");
     }
 
     #[tokio::test]
+    #[allow(clippy::unwrap_used)]
     async fn test_parse_wes_request_from_json_only() {
-        // Test with invalid file path to ensure JSON parsing works
         let request_json = serde_json::json!({
             "workflow_type": "WDL",
             "workflow_type_version": "1.0",
@@ -330,10 +316,7 @@ mod tests {
         })
         .to_string();
 
-        let result = parse_wes_request(Some(request_json), None).await;
-        assert!(result.is_ok());
-
-        let request = result.unwrap();
+        let request = parse_wes_request(Some(request_json), None).await.unwrap();
         assert_eq!(request.workflow_type, "WDL");
     }
 }
