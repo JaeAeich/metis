@@ -292,6 +292,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[allow(clippy::unwrap_used)]
     async fn test_parse_wes_request_from_json() {
         let request_json = serde_json::json!({
             "workflow_type": "CWL",
@@ -300,15 +301,13 @@ mod tests {
         })
         .to_string();
 
-        let result = parse_wes_request(Some(request_json), None).await;
-        assert!(result.is_ok());
-
-        let request = result.unwrap();
+        let request = parse_wes_request(Some(request_json), None).await.unwrap();
         assert_eq!(request.workflow_type, "CWL");
         assert_eq!(request.workflow_url, "https://example.com/workflow.cwl");
     }
 
     #[tokio::test]
+    #[allow(clippy::unwrap_used)]
     async fn test_parse_wes_request_from_json_only() {
         let request_json = serde_json::json!({
             "workflow_type": "WDL",
@@ -317,10 +316,7 @@ mod tests {
         })
         .to_string();
 
-        let result = parse_wes_request(Some(request_json), None).await;
-        assert!(result.is_ok());
-
-        let request = result.unwrap();
+        let request = parse_wes_request(Some(request_json), None).await.unwrap();
         assert_eq!(request.workflow_type, "WDL");
     }
 }
