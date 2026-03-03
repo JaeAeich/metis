@@ -622,6 +622,45 @@ pub enum State {
     Preempted,
 }
 
+impl std::fmt::Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            State::Unknown => write!(f, "UNKNOWN"),
+            State::Queued => write!(f, "QUEUED"),
+            State::Initializing => write!(f, "INITIALIZING"),
+            State::Running => write!(f, "RUNNING"),
+            State::Paused => write!(f, "PAUSED"),
+            State::Complete => write!(f, "COMPLETE"),
+            State::ExecutorError => write!(f, "EXECUTOR_ERROR"),
+            State::SystemError => write!(f, "SYSTEM_ERROR"),
+            State::Canceled => write!(f, "CANCELED"),
+            State::Canceling => write!(f, "CANCELING"),
+            State::Preempted => write!(f, "PREEMPTED"),
+        }
+    }
+}
+
+impl std::str::FromStr for State {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "UNKNOWN" => Ok(State::Unknown),
+            "QUEUED" => Ok(State::Queued),
+            "INITIALIZING" => Ok(State::Initializing),
+            "RUNNING" => Ok(State::Running),
+            "PAUSED" => Ok(State::Paused),
+            "COMPLETE" => Ok(State::Complete),
+            "EXECUTOR_ERROR" => Ok(State::ExecutorError),
+            "SYSTEM_ERROR" => Ok(State::SystemError),
+            "CANCELED" => Ok(State::Canceled),
+            "CANCELING" => Ok(State::Canceling),
+            "PREEMPTED" => Ok(State::Preempted),
+            _ => Err(format!("Invalid state: {}", s)),
+        }
+    }
+}
+
 // Implement sqlx::Type for State to enable database storage
 impl sqlx::Type<sqlx::Postgres> for State {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
@@ -671,6 +710,27 @@ impl sqlx::Decode<'_, sqlx::Postgres> for State {
             _ => Ok(State::Unknown),
         }
     }
+}
+
+/// State information of a workflow run.
+///
+/// # Example
+/// ```json
+/// {
+///   "run_id": "550e8400-e29b-41d4-a716-446655440000",
+///   "state": "RUNNING"
+/// }
+/// ```
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct RunStatus {
+    /// Unique identifier for the workflow run
+    #[serde(rename = "run_id")]
+    #[schema(example = "550e8400-e29b-41d4-a716-446655440000")]
+    pub run_id: String,
+
+    /// Current state of the workflow run
+    #[serde(rename = "state", skip_serializing_if = "Option::is_none")]
+    pub state: Option<State>,
 }
 
 /// The service will return a TaskListResponse when receiving a successful
