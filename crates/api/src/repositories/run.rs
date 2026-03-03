@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use base64::Engine;
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
-use super::{RepositoryResult, Run, RunId, State};
+use super::{RepositoryResult, Run, RunId, State, calculate_next_token, pagination_offset};
 
 #[async_trait]
 pub trait RunRepository: Send + Sync {
@@ -54,7 +53,7 @@ impl RunRepository for SqlxRunRepository {
         filter: RunFilter,
         pagination: Pagination,
     ) -> RepositoryResult<PaginatedResult<Run>> {
-        let offset = decode_offset(&pagination.page_token).unwrap_or(0);
+        let offset = pagination_offset(&pagination);
         let limit = pagination.page_size as i64;
 
         let mut query_str = String::from(
@@ -119,16 +118,7 @@ impl RunRepository for SqlxRunRepository {
 
         let runs: Vec<Run> = rows.into_iter().map(map_row_to_run).collect();
 
-        let has_more = runs.len() > pagination.page_size as usize;
-        let items: Vec<Run> = runs.into_iter().take(pagination.page_size as usize).collect();
-
-        let next_page_token = if has_more {
-            Some(encode_offset(offset + pagination.page_size as u64))
-        } else {
-            None
-        };
-
-        Ok(PaginatedResult { items, next_page_token })
+        Ok(calculate_next_token(runs, pagination.page_size, offset))
     }
 
     async fn count_by_state(&self) -> RepositoryResult<HashMap<String, i64>> {
@@ -162,17 +152,6 @@ fn map_row_to_run(row: sqlx::postgres::PgRow) -> Run {
         end_time: row.get("end_time"),
         created_at: row.get("created_at"),
     }
-}
-
-fn decode_offset(token: &Option<String>) -> Option<u64> {
-    token.as_ref().and_then(|t| {
-        let decoded = base64::engine::general_purpose::STANDARD.decode(t).ok()?;
-        String::from_utf8(decoded).ok()?.parse().ok()
-    })
-}
-
-fn encode_offset(offset: u64) -> String {
-    base64::engine::general_purpose::STANDARD.encode(offset.to_string())
 }
 
 #[derive(Debug, Clone, Default)]

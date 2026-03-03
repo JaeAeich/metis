@@ -130,7 +130,7 @@ pub async fn stream_log_lines(
                         let event = Event::default().data(json);
 
                         if tx.send(Ok(event)).await.is_err() {
-                            break;
+                            return;
                         }
                     }
                 },

@@ -11,7 +11,7 @@ pub struct PageParams {
     #[param(example = 50)]
     pub page_size: Option<u32>,
 
-    #[param(example = "eyJvZmZzZXQiOjUwfQ==")]
+    #[param(example = "NTA=")]
     pub page_token: Option<String>,
 }
 
