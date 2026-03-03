@@ -1,8 +1,10 @@
 use async_trait::async_trait;
-use base64::Engine;
 use sqlx::{PgPool, Row};
 
-use super::{PaginatedResult, Pagination, RepositoryResult, RunId, Task, TaskId};
+use super::{
+    PaginatedResult, Pagination, RepositoryResult, RunId, Task, TaskId, calculate_next_token,
+    pagination_offset,
+};
 
 #[async_trait]
 pub trait TaskRepository: Send + Sync {
@@ -49,7 +51,7 @@ impl TaskRepository for SqlxTaskRepository {
         run_id: &RunId,
         pagination: Pagination,
     ) -> RepositoryResult<PaginatedResult<Task>> {
-        let offset = decode_offset(&pagination.page_token).unwrap_or(0);
+        let offset = pagination_offset(&pagination);
         let limit = pagination.page_size as i64;
 
         let rows = sqlx::query(
@@ -71,16 +73,7 @@ impl TaskRepository for SqlxTaskRepository {
 
         let tasks: Vec<Task> = rows.into_iter().map(map_row_to_task).collect();
 
-        let has_more = tasks.len() > pagination.page_size as usize;
-        let items: Vec<Task> = tasks.into_iter().take(pagination.page_size as usize).collect();
-
-        let next_page_token = if has_more {
-            Some(encode_offset(offset + pagination.page_size as u64))
-        } else {
-            None
-        };
-
-        Ok(PaginatedResult { items, next_page_token })
+        Ok(calculate_next_token(tasks, pagination.page_size, offset))
     }
 }
 
@@ -102,15 +95,4 @@ fn map_row_to_task(row: sqlx::postgres::PgRow) -> Task {
             .and_then(|v| serde_json::from_value(v).ok()),
         tes_uri: row.get("tes_uri"),
     }
-}
-
-fn decode_offset(token: &Option<String>) -> Option<u64> {
-    token.as_ref().and_then(|t| {
-        let decoded = base64::engine::general_purpose::STANDARD.decode(t).ok()?;
-        String::from_utf8(decoded).ok()?.parse().ok()
-    })
-}
-
-fn encode_offset(offset: u64) -> String {
-    base64::engine::general_purpose::STANDARD.encode(offset.to_string())
 }
