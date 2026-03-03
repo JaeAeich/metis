@@ -51,7 +51,7 @@ impl WorkdirManager {
             }
         }
 
-        Ok(BuildContext {
+        let ctx = BuildContext {
             run_id: run_id.to_string(),
             user_id: safe_user_id,
             workflow_path: String::new(),
@@ -66,7 +66,20 @@ impl WorkdirManager {
             output_dir: subdirs.get("outputs").cloned().unwrap_or_default(),
             date: timestamp.format("%Y-%m-%d").to_string(),
             time: timestamp.format("%H-%M-%S").to_string(),
-        })
+        };
+
+        // Add per run level config
+        if let Some(ref run_config) = config.runs.config {
+            let filepath = ctx.replace_vars(&run_config.filepath);
+            let content = ctx.replace_vars(&run_config.content);
+            let full_path = format!("{}/{}", ctx.workdir, filepath);
+            std::fs::write(&full_path, &content).map_err(|e| {
+                error!("Failed to write config file '{}': {}", full_path, e);
+                EngineError::Io(e)
+            })?;
+        }
+
+        Ok(ctx)
     }
 
     pub async fn setup(workdir: &str) -> EngineResult<()> {

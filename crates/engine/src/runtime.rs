@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
 use common::models::{RunRequestMessage, RunSummary, State, TaskListResponse, ValidatedRunRequest};
 use futures::StreamExt;
@@ -29,7 +29,7 @@ pub struct ExecutionContext {
     pub workflow_url: String,
     pub workdir: String,
     pub subdirs: HashMap<String, String>,
-    pub started_at: chrono::DateTime<Utc>,
+    pub started_at: DateTime<Utc>,
     pub cancelled: Arc<AtomicBool>,
 }
 
