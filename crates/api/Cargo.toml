@@ -1,0 +1,40 @@
+[[bin]]
+name = "metis-api"
+path = "src/main.rs"
+
+[dependencies]
+async-stream = "0.3.6"
+async-trait = "0.1.89"
+axum = { features = [ "macros" ], version = "0.8.8" }
+axum-extra = { features = [ "query", "typed-header" ], version = "0.12.5" }
+base64 = "0.22.1"
+chrono = { features = [ "serde" ], version = "0.4.44" }
+common = { path = "../common", version = "0.1.0" }
+futures = "0.3.32"
+serde = { features = [ "derive" ], workspace = true }
+serde_json = { workspace = true }
+sqlx = { features = [
+  "chrono",
+  "derive",
+  "json",
+  "macros",
+  "postgres",
+  "runtime-tokio-rustls",
+  "uuid",
+], workspace = true }
+thiserror = "2.0.18"
+tokio = { features = [ "full" ], workspace = true }
+tokio-stream = "0.1.18"
+tower-http = { features = [ "cors", "trace" ], version = "0.6.8" }
+tracing-subscriber = { features = [ "env-filter", "json" ], workspace = true }
+url = "2.5.8"
+utoipa = { features = [ "axum_extras", "chrono", "uuid" ], workspace = true }
+utoipa-swagger-ui = { features = [ "axum" ], version = "9" }
+uuid = { features = [ "serde", "v7" ], workspace = true }
+envy.workspace = true
+tracing.workspace = true
+
+[package]
+edition = "2024"
+name = "metis-api"
+version = "0.1.0"
