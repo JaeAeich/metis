@@ -26,6 +26,8 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           install: true
+      - name: Install nightly rustfmt
+        run: rustup component add --toolchain nightly rustfmt
       - name: Run lefthook
         run: mise x -- lefthook run pre-commit --all-files
   semantic-pr:
