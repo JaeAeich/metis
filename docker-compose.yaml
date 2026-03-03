@@ -34,3 +34,28 @@ services:
       - "-database"
       - "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
       - "up"
+  metis-api:
+    build:
+      context: .
+      dockerfile: deployment/images/api.Dockerfile
+    container_name: metis-api
+    restart: on-failure
+    depends_on:
+      metis-db-migrations:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports:
+      - "8080:8080"
+  metis-ui:
+    build:
+      context: .
+      dockerfile: deployment/images/ui.Dockerfile
+    container_name: metis-ui
+    restart: on-failure
+    depends_on:
+      - metis-api
+    environment:
+      API_URL: http://metis-api:8080/
+    ports:
+      - "80:80"

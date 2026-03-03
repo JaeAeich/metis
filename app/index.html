@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/public/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/public/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/public/apple-touch-icon.png">
+    <link rel="manifest" href="/public/site.webmanifest">
+    <title>Metis - Runs</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1 class="logo">Metis</h1>
+        <p class="subtitle">Workflow Run Monitor</p>
+      </header>
+
+      <div class="filters">
+        <select id="state-filter" onchange="filterRuns()">
+          <option value="">All States</option>
+          <option value="QUEUED">Queued</option>
+          <option value="INITIALIZING">Initializing</option>
+          <option value="RUNNING">Running</option>
+          <option value="PAUSED">Paused</option>
+          <option value="COMPLETE">Complete</option>
+          <option value="EXECUTOR_ERROR">Executor Error</option>
+          <option value="SYSTEM_ERROR">System Error</option>
+          <option value="CANCELED">Canceled</option>
+        </select>
+      </div>
+
+      <div class="runs-container">
+        <table class="runs-table">
+          <thead>
+            <tr>
+              <th>Run ID</th>
+              <th>Status</th>
+              <th>Started</th>
+              <th>Ended</th>
+            </tr>
+          </thead>
+          <tbody
+            id="runs-body"
+            hx-get="/api/runs"
+            hx-trigger="load, every 10s"
+            hx-swap="innerHTML"
+          ></tbody>
+        </table>
+      </div>
+
+      <div id="pagination" class="pagination"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>

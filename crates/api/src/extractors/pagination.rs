@@ -31,6 +31,8 @@ pub struct LogPageParams {
 
     #[param(example = 42)]
     pub after_seq: Option<i64>,
+
+    pub stream: Option<String>,
 }
 
 impl LogPageParams {

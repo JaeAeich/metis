@@ -38,6 +38,11 @@ pre-commit:
       run: mise x -- typos
       stage_fixed: true
 
+    biome:
+      glob: "app/**/*.{html,css,js,json}"
+      run: mise x -- biome check --write --unsafe {staged_files}
+      stage_fixed: true
+
     sqlfluff:
       glob: "**/*.sql"
       run: mise x -- sqlfluff fix --dialect postgres {staged_files}
