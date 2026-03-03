@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// Engine result type
-pub type EngineResult<T> = Result<T, EngineError>;
+pub type EngineResult<T> = std::result::Result<T, EngineError>;
 
 /// Engine error type
 #[derive(Debug)]

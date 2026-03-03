@@ -1,9 +1,27 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use engine::Engine;
+use async_trait::async_trait;
+use common::models::{TaskLog, WorkflowFileInfo};
+use engine::{Engine, EngineError};
 use tempfile::TempDir;
 use uuid::Uuid;
+
+struct NoopEngine;
+
+#[async_trait]
+impl Engine for NoopEngine {
+    async fn get_workflow_results(
+        &self,
+    ) -> Result<Option<HashMap<String, HashMap<String, WorkflowFileInfo>>>, EngineError> {
+        Ok(None)
+    }
+
+    async fn get_task_logs(&self) -> Result<Option<Vec<TaskLog>>, EngineError> {
+        Ok(None)
+    }
+}
 
 #[tokio::test]
 async fn test_dry_run_with_manual_test_config() {
@@ -37,7 +55,7 @@ async fn test_dry_run_with_manual_test_config() {
     let validated_request = validator.validate(&request).expect("Validation failed");
 
     let runtime =
-        engine::EngineRuntime::new(Arc::new(engine::NoopEngine), config.clone(), None, None, true)
+        engine::EngineRuntime::new(Arc::new(NoopEngine), config.clone(), None, None, true)
             .await
             .expect("Failed to create runtime");
 
@@ -68,7 +86,7 @@ async fn test_dry_run_with_manual_test_config() {
 
 #[tokio::test]
 async fn test_engine_trait_noop_implementation() {
-    let engine = engine::NoopEngine;
+    let engine = NoopEngine;
 
     let results = engine.get_workflow_results().await.expect("get_workflow_results failed");
     assert!(results.is_none());

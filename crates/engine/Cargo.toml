@@ -1,7 +1,3 @@
-[[bin]]
-name = "engine"
-path = "src/main.rs"
-
 [dependencies]
 anyhow = "1.0.100"
 async-nats = { workspace = true }
