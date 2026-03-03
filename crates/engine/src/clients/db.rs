@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::configs::DatabaseConfig;
 use common::models::{Log, State, TaskLog, ValidatedRunRequest};
 use sqlx::PgPool;
-use tracing::{debug, warn};
+use tracing::debug;
 
 use crate::error::{EngineError, EngineResult};
 
@@ -31,7 +31,8 @@ impl Db {
         let pool = PgPool::connect(&config.database_url)
             .await
             .map_err(|e| EngineError::Generic(format!("Failed to connect to database: {}", e)))?;
-        debug!(url = %config.database_url, "Connected to database");
+        let display_url = config.database_url.split('@').next_back().unwrap_or("database");
+        debug!(url = %display_url, "Connected to database");
         Ok(Self { pool })
     }
 
@@ -161,15 +162,18 @@ impl Db {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| {
-            warn!(run_id = run_id, seq = seq, error = %e, "Failed to insert log line");
-            EngineError::Generic(format!("Failed to insert log line: {}", e))
-        })?;
+        .map_err(|e| EngineError::Generic(format!("Failed to insert log line: {}", e)))?;
 
         Ok(())
     }
 
     pub async fn insert_task_logs(&self, run_id: &str, tasks: &[TaskLog]) -> EngineResult<()> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| EngineError::Generic(format!("Failed to begin transaction: {}", e)))?;
+
         for task in tasks {
             let cmd = task
                 .cmd
@@ -200,10 +204,14 @@ impl Db {
                 system_logs,
                 task.tes_uri,
             )
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await
             .map_err(|e| EngineError::Generic(format!("Failed to insert task log: {}", e)))?;
         }
+
+        tx.commit()
+            .await
+            .map_err(|e| EngineError::Generic(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(())
     }

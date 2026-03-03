@@ -303,12 +303,11 @@ impl EngineRuntime {
         span.record("state", "initializing");
         WorkdirManager::setup(&ctx.workdir).await?;
 
-        if let Some(db) = &self.db {
-            if let Err(e) =
+        if let Some(db) = &self.db
+            && let Err(e) =
                 db.insert_run(&ctx.run_id.to_string(), &ctx.user_id, &req, started_at).await
-            {
-                warn!(run_id = %ctx.run_id, error = %e, "Failed to insert run into database");
-            }
+        {
+            warn!(run_id = %ctx.run_id, error = %e, "Failed to insert run into database");
         }
 
         // Step 2: Build execution command
@@ -374,10 +373,10 @@ impl EngineRuntime {
         self.pid_store.store(&ctx.run_id.to_string(), pid).await?;
         info!(pid = pid, "Workflow process started");
 
-        if let Some(db) = &self.db {
-            if let Err(e) = db.update_run_state(&ctx.run_id.to_string(), State::Running).await {
-                warn!(run_id = %ctx.run_id, error = %e, "Failed to update run state to RUNNING");
-            }
+        if let Some(db) = &self.db
+            && let Err(e) = db.update_run_state(&ctx.run_id.to_string(), State::Running).await
+        {
+            warn!(run_id = %ctx.run_id, error = %e, "Failed to update run state to RUNNING");
         }
 
         // Step 4: Monitor execution (this blocks until completion or cancellation)
