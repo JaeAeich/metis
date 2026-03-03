@@ -1,7 +1,8 @@
-use crate::configs::EngineParam;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use utoipa::ToSchema;
+
+use crate::configs::EngineParam;
 
 /// Available workflow types supported by a given instance of the service.
 ///
@@ -18,15 +19,13 @@ pub struct WorkflowTypeVersion {
     /// # Examples
     /// - `["1.0", "1.1"]` for CWL versions
     /// - `["draft-2", "1.0"]` for WDL versions
-    #[serde(
-        rename = "workflow_type_version",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(rename = "workflow_type_version", skip_serializing_if = "Option::is_none")]
     #[schema(example = json!(["1.0", "1.1", "1.2"]))]
     pub workflow_type_version: Option<Vec<String>>,
 }
 
-/// A message that allows one to describe default parameters for a workflow engine.
+/// A message that allows one to describe default parameters for a workflow
+/// engine.
 ///
 /// # Example
 /// ```json
@@ -70,7 +69,8 @@ pub struct DefaultWorkflowEngineParameter {
     pub default_value: Option<String>,
 }
 
-/// Service information including supported versions, protocols, and system statistics.
+/// Service information including supported versions, protocols, and system
+/// statistics.
 ///
 /// # Example
 /// ```json
@@ -107,10 +107,11 @@ pub struct ServiceInfo {
 
     /// The filesystem protocols supported by this service.
     ///
-    /// Currently these may include common protocols using the terms 'http', 'https',
-    /// 'sftp', 's3', 'gs', 'file', or 'synapse', but others are possible and the terms
-    /// beyond these core protocols are currently not fixed. This section reports those
-    /// protocols (either common or not) supported by this WES service.
+    /// Currently these may include common protocols using the terms 'http',
+    /// 'https', 'sftp', 's3', 'gs', 'file', or 'synapse', but others are
+    /// possible and the terms beyond these core protocols are currently not
+    /// fixed. This section reports those protocols (either common or not)
+    /// supported by this WES service.
     #[serde(rename = "supported_filesystem_protocols")]
     #[schema(example = json!(["http", "https", "s3", "file", "gs"]))]
     pub supported_filesystem_protocols: Vec<String>,
@@ -120,19 +121,20 @@ pub struct ServiceInfo {
     #[schema(example = json!({"cromwell": {"workflow_engine_version": ["85", "86"]}, "nextflow": {"workflow_engine_version": ["23.04.0"]}}))]
     pub workflow_engine_versions: std::collections::HashMap<String, WorkflowEngineVersion>,
 
-    /// Each workflow engine can present additional parameters that can be sent to the workflow engine.
-    /// This message will list the default values, and their types for each workflow engine.
+    /// Each workflow engine can present additional parameters that can be sent
+    /// to the workflow engine. This message will list the default values,
+    /// and their types for each workflow engine.
     #[serde(rename = "default_workflow_engine_parameters")]
     pub default_workflow_engine_parameters: Vec<DefaultWorkflowEngineParameter>,
 
-    /// The system statistics, key is the statistic, value is the count of runs in that state.
-    /// See the State enum for the possible keys.
+    /// The system statistics, key is the statistic, value is the count of runs
+    /// in that state. See the State enum for the possible keys.
     #[serde(rename = "system_state_counts")]
     #[schema(example = json!({"COMPLETE": 150, "RUNNING": 5, "QUEUED": 10, "UNKNOWN": 0}))]
     pub system_state_counts: std::collections::HashMap<String, i64>,
 
-    /// A web page URL with human-readable instructions on how to get an authorization token
-    /// for use with a specific WES endpoint.
+    /// A web page URL with human-readable instructions on how to get an
+    /// authorization token for use with a specific WES endpoint.
     #[serde(rename = "auth_instructions_url")]
     #[schema(example = "https://example.com/auth")]
     pub auth_instructions_url: String,
@@ -193,26 +195,32 @@ pub struct Log {
     #[sqlx(json)]
     pub cmd: Option<Vec<String>>,
 
-    /// When the command started executing, in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+    /// When the command started executing, in ISO 8601 format
+    /// "%Y-%m-%dT%H:%M:%SZ"
     #[serde(rename = "start_time", skip_serializing_if = "Option::is_none")]
     #[schema(example = "2024-01-15T10:30:00Z")]
     pub start_time: Option<String>,
 
-    /// When the command stopped executing (completed, failed, or cancelled), in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+    /// When the command stopped executing (completed, failed, or cancelled), in
+    /// ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
     #[serde(rename = "end_time", skip_serializing_if = "Option::is_none")]
     #[schema(example = "2024-01-15T11:45:30Z")]
     pub end_time: Option<String>,
 
     /// A URL to retrieve standard output logs of the workflow run or task.
-    /// This URL may change between status requests, or may not be available until the task or workflow has finished execution.
-    /// Should be available using the same credentials used to access the WES endpoint.
+    /// This URL may change between status requests, or may not be available
+    /// until the task or workflow has finished execution.
+    /// Should be available using the same credentials used to access the WES
+    /// endpoint.
     #[serde(rename = "stdout", skip_serializing_if = "Option::is_none")]
     #[schema(example = "https://storage.example.com/logs/stdout.log")]
     pub stdout: Option<String>,
 
     /// A URL to retrieve standard error logs of the workflow run or task.
-    /// This URL may change between status requests, or may not be available until the task or workflow has finished execution.
-    /// Should be available using the same credentials used to access the WES endpoint.
+    /// This URL may change between status requests, or may not be available
+    /// until the task or workflow has finished execution.
+    /// Should be available using the same credentials used to access the WES
+    /// endpoint.
     #[serde(rename = "stderr", skip_serializing_if = "Option::is_none")]
     #[schema(example = "https://storage.example.com/logs/stderr.log")]
     pub stderr: Option<String>,
@@ -222,9 +230,11 @@ pub struct Log {
     #[schema(example = 0)]
     pub exit_code: Option<i32>,
 
-    /// System logs are any logs the system decides are relevant, which are not tied directly to a workflow.
-    /// Content is implementation specific: format, size, etc. System logs may be collected here to provide convenient access.
-    /// For example, the system may include an error message that caused a SYSTEM_ERROR state (e.g. disk is full), etc.
+    /// System logs are any logs the system decides are relevant, which are not
+    /// tied directly to a workflow. Content is implementation specific:
+    /// format, size, etc. System logs may be collected here to provide
+    /// convenient access. For example, the system may include an error
+    /// message that caused a SYSTEM_ERROR state (e.g. disk is full), etc.
     #[serde(rename = "system_logs", skip_serializing_if = "Option::is_none")]
     #[schema(example = json!(["Started execution on node-01", "Memory usage: 2.1GB"]))]
     #[sqlx(json)]
@@ -247,11 +257,13 @@ pub struct RunId {
     pub run_id: Option<String>,
 }
 
-/// The service will return a RunListResponse when receiving a successful RunListRequest.
+/// The service will return a RunListResponse when receiving a successful
+/// RunListRequest.
 ///
-/// **DEPRECATION WARNING**: The use of `RunStatus` as the schema for `runs` array items will not be
-/// permitted from the next major version of the specification (2.0.0) onwards.
-/// We encourage implementers to use `RunSummary` instead.
+/// **DEPRECATION WARNING**: The use of `RunStatus` as the schema for `runs`
+/// array items will not be permitted from the next major version of the
+/// specification (2.0.0) onwards. We encourage implementers to use `RunSummary`
+/// instead.
 ///
 /// # Example
 /// ```json
@@ -271,12 +283,14 @@ pub struct RunId {
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct RunListResponse {
     /// A list of workflow runs that the service has executed or is executing.
-    /// The list is filtered to only include runs that the caller has permission to see.
+    /// The list is filtered to only include runs that the caller has permission
+    /// to see.
     #[serde(rename = "runs", skip_serializing_if = "Option::is_none")]
     pub runs: Option<Vec<RunListResponseRunsInner>>,
 
-    /// A token which may be supplied as `page_token` in workflow run list request to get the next page of results.
-    /// An empty string indicates there are no more items to return.
+    /// A token which may be supplied as `page_token` in workflow run list
+    /// request to get the next page of results. An empty string indicates
+    /// there are no more items to return.
     #[serde(rename = "next_page_token", skip_serializing_if = "Option::is_none")]
     #[schema(example = "eyJwYWdlIjoyLCJsaW1pdCI6NTB9")]
     pub next_page_token: Option<String>,
@@ -310,7 +324,8 @@ pub struct RunListResponseRunsInner {
     #[schema(example = "2024-01-15T10:30:00Z")]
     pub start_time: Option<String>,
 
-    /// When the run stopped executing (completed, failed, or cancelled), in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+    /// When the run stopped executing (completed, failed, or cancelled), in ISO
+    /// 8601 format "%Y-%m-%dT%H:%M:%SZ"
     #[serde(rename = "end_time", skip_serializing_if = "Option::is_none")]
     #[schema(example = "2024-01-15T11:45:30Z")]
     pub end_time: Option<String>,
@@ -322,7 +337,8 @@ pub struct RunListResponseRunsInner {
     pub tags: std::collections::HashMap<String, String>,
 }
 
-/// Complete workflow run log including request details, state, and execution logs.
+/// Complete workflow run log including request details, state, and execution
+/// logs.
 ///
 /// # Example
 /// ```json
@@ -364,12 +380,14 @@ pub struct RunLog {
     #[serde(rename = "run_log", skip_serializing_if = "Option::is_none")]
     pub run_log: Option<Box<Log>>,
 
-    /// A reference to the complete url which may be used to obtain a paginated list of task logs for this workflow
+    /// A reference to the complete url which may be used to obtain a paginated
+    /// list of task logs for this workflow
     #[serde(rename = "task_logs_url", skip_serializing_if = "Option::is_none")]
     #[schema(example = "https://api.example.com/runs/550e8400-e29b-41d4-a716-446655440000/tasks")]
     pub task_logs_url: Option<String>,
 
-    /// The outputs from the workflow run, based on engine the top level categories might differ
+    /// The outputs from the workflow run, based on engine the top level
+    /// categories might differ
     #[serde(rename = "outputs", skip_serializing_if = "Option::is_none")]
     #[schema(example = json!({
         "results": {
@@ -398,9 +416,11 @@ pub struct RunLog {
     >,
 }
 
-/// To execute a workflow, send a run request including all the details needed to begin downloading and executing a given workflow.
-/// If workflow_engine and workflow_engine_version are not provided, servers can use the most recent workflow_engine_version
-/// of workflow_engine that WES instance uses to process the request if supports for the requested workflow_type.
+/// To execute a workflow, send a run request including all the details needed
+/// to begin downloading and executing a given workflow. If workflow_engine and
+/// workflow_engine_version are not provided, servers can use the most recent
+/// workflow_engine_version of workflow_engine that WES instance uses to process
+/// the request if supports for the requested workflow_type.
 ///
 /// # Example
 /// ```json
@@ -428,19 +448,21 @@ pub struct RunLog {
 /// ```
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct RunRequest {
-    /// **REQUIRED** The workflow run parameterizations (JSON encoded), including input and output file locations
+    /// **REQUIRED** The workflow run parameterizations (JSON encoded),
+    /// including input and output file locations
     #[serde(rename = "workflow_params", skip_serializing_if = "Option::is_none")]
     #[schema(example = json!({"input_file": "s3://my-bucket/input.vcf", "reference_genome": "hg38"}))]
     #[sqlx(json)]
     pub workflow_params: Option<serde_json::Value>,
 
-    /// **REQUIRED** The workflow descriptor type, must be "CWL" or "WDL" currently
-    /// (or another alternative supported by this WES instance)
+    /// **REQUIRED** The workflow descriptor type, must be "CWL" or "WDL"
+    /// currently (or another alternative supported by this WES instance)
     #[serde(rename = "workflow_type")]
     #[schema(example = "CWL")]
     pub workflow_type: String,
 
-    /// **REQUIRED** The workflow descriptor type version, must be one supported by this WES instance
+    /// **REQUIRED** The workflow descriptor type version, must be one supported
+    /// by this WES instance
     #[serde(rename = "workflow_type_version")]
     #[schema(example = "1.0")]
     pub workflow_type_version: String,
@@ -452,31 +474,29 @@ pub struct RunRequest {
     pub tags: Option<std::collections::HashMap<String, String>>,
 
     /// Additional parameters to pass to the workflow engine
-    #[serde(
-        rename = "workflow_engine_parameters",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(rename = "workflow_engine_parameters", skip_serializing_if = "Option::is_none")]
     #[schema(example = json!({"memory": "8GB", "cpu": "4"}))]
     #[sqlx(json)]
     pub workflow_engine_parameters: Option<std::collections::HashMap<String, String>>,
 
-    /// The workflow engine, must be one supported by this WES instance. Required if workflow_engine_version is provided.
+    /// The workflow engine, must be one supported by this WES instance.
+    /// Required if workflow_engine_version is provided.
     #[serde(rename = "workflow_engine", skip_serializing_if = "Option::is_none")]
     #[schema(example = "cwltool")]
     pub workflow_engine: Option<String>,
 
-    /// The workflow engine version, must be one supported by this WES instance. If workflow_engine is provided,
-    /// but workflow_engine_version is not, servers can make no assumptions with regard to the engine version
-    /// the WES instance uses to process the request if that WES instance supports multiple versions of the requested engine.
-    #[serde(
-        rename = "workflow_engine_version",
-        skip_serializing_if = "Option::is_none"
-    )]
+    /// The workflow engine version, must be one supported by this WES instance.
+    /// If workflow_engine is provided, but workflow_engine_version is not,
+    /// servers can make no assumptions with regard to the engine version
+    /// the WES instance uses to process the request if that WES instance
+    /// supports multiple versions of the requested engine.
+    #[serde(rename = "workflow_engine_version", skip_serializing_if = "Option::is_none")]
     #[schema(example = "3.1.20240112164112")]
     pub workflow_engine_version: Option<String>,
 
-    /// **REQUIRED** The workflow CWL or WDL document. When `workflow_attachments` is used to attach files,
-    /// the `workflow_url` may be a relative path to one of the attachments.
+    /// **REQUIRED** The workflow CWL or WDL document. When
+    /// `workflow_attachments` is used to attach files, the `workflow_url`
+    /// may be a relative path to one of the attachments.
     #[serde(rename = "workflow_url")]
     #[schema(example = "https://github.com/example/variant-calling.cwl")]
     pub workflow_url: String,
@@ -516,7 +536,8 @@ pub struct RunSummary {
     #[schema(example = "2024-01-15T10:30:00Z")]
     pub start_time: Option<String>,
 
-    /// When the run stopped executing (completed, failed, or cancelled), in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+    /// When the run stopped executing (completed, failed, or cancelled), in ISO
+    /// 8601 format "%Y-%m-%dT%H:%M:%SZ"
     #[serde(rename = "end_time", skip_serializing_if = "Option::is_none")]
     #[schema(example = "2024-01-15T11:45:30Z")]
     pub end_time: Option<String>,
@@ -530,16 +551,24 @@ pub struct RunSummary {
 
 /// State can take any of the following values:
 ///
-/// - `UNKNOWN`: The state of the task is unknown. This provides a safe default for messages where this field is missing.
+/// - `UNKNOWN`: The state of the task is unknown. This provides a safe default
+///   for messages where this field is missing.
 /// - `QUEUED`: The task is queued.
-/// - `INITIALIZING`: The task has been assigned to a worker and is currently preparing to run.
-/// - `RUNNING`: The task is running. Input files are downloaded and the first Executor has been started.
-/// - `PAUSED`: The task is paused. An implementation may have the ability to pause a task, but this is not required.
-/// - `COMPLETE`: The task has completed running. Executors have exited without error and output files have been successfully uploaded.
-/// - `EXECUTOR_ERROR`: The task encountered an error in one of the Executor processes.
-/// - `SYSTEM_ERROR`: The task was stopped due to a system error, but not from an Executor.
+/// - `INITIALIZING`: The task has been assigned to a worker and is currently
+///   preparing to run.
+/// - `RUNNING`: The task is running. Input files are downloaded and the first
+///   Executor has been started.
+/// - `PAUSED`: The task is paused. An implementation may have the ability to
+///   pause a task, but this is not required.
+/// - `COMPLETE`: The task has completed running. Executors have exited without
+///   error and output files have been successfully uploaded.
+/// - `EXECUTOR_ERROR`: The task encountered an error in one of the Executor
+///   processes.
+/// - `SYSTEM_ERROR`: The task was stopped due to a system error, but not from
+///   an Executor.
 /// - `CANCELED`: The task was canceled by the user.
-/// - `CANCELING`: The task was canceled by the user, and is in the process of stopping.
+/// - `CANCELING`: The task was canceled by the user, and is in the process of
+///   stopping.
 /// - `PREEMPTED`: The task is stopped (preempted) by the system.
 #[derive(
     Clone,
@@ -644,7 +673,8 @@ impl sqlx::Decode<'_, sqlx::Postgres> for State {
     }
 }
 
-/// The service will return a TaskListResponse when receiving a successful TaskListRequest.
+/// The service will return a TaskListResponse when receiving a successful
+/// TaskListRequest.
 ///
 /// # Example
 /// ```json
@@ -666,12 +696,14 @@ impl sqlx::Decode<'_, sqlx::Postgres> for State {
 /// ```
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct TaskListResponse {
-    /// The logs, and other key info like timing and exit code, for each step in the workflow run.
+    /// The logs, and other key info like timing and exit code, for each step in
+    /// the workflow run.
     #[serde(rename = "task_logs", skip_serializing_if = "Option::is_none")]
     pub task_logs: Option<Vec<TaskLog>>,
 
-    /// A token which may be supplied as `page_token` in workflow run task list request to get the next page of results.
-    /// An empty string indicates there are no more items to return.
+    /// A token which may be supplied as `page_token` in workflow run task list
+    /// request to get the next page of results. An empty string indicates
+    /// there are no more items to return.
     #[serde(rename = "next_page_token", skip_serializing_if = "Option::is_none")]
     #[schema(example = "eyJ0YXNrX29mZnNldCI6NTAsInJ1bl9pZCI6IjU1MGU4NDAwIn0=")]
     pub next_page_token: Option<String>,
@@ -716,26 +748,32 @@ pub struct TaskLog {
     #[sqlx(json)]
     pub cmd: Option<Vec<String>>,
 
-    /// When the command started executing, in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+    /// When the command started executing, in ISO 8601 format
+    /// "%Y-%m-%dT%H:%M:%SZ"
     #[serde(rename = "start_time", skip_serializing_if = "Option::is_none")]
     #[schema(example = "2024-01-15T10:30:00Z")]
     pub start_time: Option<String>,
 
-    /// When the command stopped executing (completed, failed, or cancelled), in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+    /// When the command stopped executing (completed, failed, or cancelled), in
+    /// ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
     #[serde(rename = "end_time", skip_serializing_if = "Option::is_none")]
     #[schema(example = "2024-01-15T10:45:30Z")]
     pub end_time: Option<String>,
 
     /// A URL to retrieve standard output logs of the workflow run or task.
-    /// This URL may change between status requests, or may not be available until the task or workflow has finished execution.
-    /// Should be available using the same credentials used to access the WES endpoint.
+    /// This URL may change between status requests, or may not be available
+    /// until the task or workflow has finished execution.
+    /// Should be available using the same credentials used to access the WES
+    /// endpoint.
     #[serde(rename = "stdout", skip_serializing_if = "Option::is_none")]
     #[schema(example = "https://storage.example.com/logs/task1_stdout.log")]
     pub stdout: Option<String>,
 
     /// A URL to retrieve standard error logs of the workflow run or task.
-    /// This URL may change between status requests, or may not be available until the task or workflow has finished execution.
-    /// Should be available using the same credentials used to access the WES endpoint.
+    /// This URL may change between status requests, or may not be available
+    /// until the task or workflow has finished execution.
+    /// Should be available using the same credentials used to access the WES
+    /// endpoint.
     #[serde(rename = "stderr", skip_serializing_if = "Option::is_none")]
     #[schema(example = "https://storage.example.com/logs/task1_stderr.log")]
     pub stderr: Option<String>,
@@ -745,10 +783,12 @@ pub struct TaskLog {
     #[schema(example = 0)]
     pub exit_code: Option<i32>,
 
-    /// System logs are any logs the system decides are relevant, which are not tied directly to a task.
-    /// Content is implementation specific: format, size, etc. System logs may be collected here to provide convenient access.
-    /// For example, the system may include the name of the host where the task is executing,
-    /// an error message that caused a SYSTEM_ERROR state (e.g. disk is full), etc.
+    /// System logs are any logs the system decides are relevant, which are not
+    /// tied directly to a task. Content is implementation specific: format,
+    /// size, etc. System logs may be collected here to provide convenient
+    /// access. For example, the system may include the name of the host
+    /// where the task is executing, an error message that caused a
+    /// SYSTEM_ERROR state (e.g. disk is full), etc.
     #[serde(rename = "system_logs", skip_serializing_if = "Option::is_none")]
     #[schema(example = json!(["Task assigned to compute node worker-03", "Docker image pulled: biocontainers/bwa:0.7.17", "Task completed successfully"]))]
     #[sqlx(json)]
@@ -762,7 +802,8 @@ pub struct TaskLog {
     pub tes_uri: Option<String>,
 }
 
-/// Available workflow engine versions supported by a given instance of the service.
+/// Available workflow engine versions supported by a given instance of the
+/// service.
 ///
 /// # Example
 /// ```json
@@ -772,16 +813,14 @@ pub struct TaskLog {
 /// ```
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct WorkflowEngineVersion {
-    /// An array of one or more acceptable engine versions for the `workflow_engine`
+    /// An array of one or more acceptable engine versions for the
+    /// `workflow_engine`
     ///
     /// # Examples
     /// - `["85", "86"]` for Cromwell versions
     /// - `["23.04.0", "23.10.0"]` for Nextflow versions
     /// - `["3.1.20240112164112"]` for cwltool versions
-    #[serde(
-        rename = "workflow_engine_version",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(rename = "workflow_engine_version", skip_serializing_if = "Option::is_none")]
     #[schema(example = json!(["85", "86", "87"]))]
     pub workflow_engine_version: Option<Vec<String>>,
 }
@@ -792,21 +831,25 @@ pub struct ValidatedParam {
     pub value: Option<serde_json::Value>,
 }
 
-/// To execute a workflow, send a run request including all the details needed to begin downloading and executing a given workflow.
-/// If workflow_engine and workflow_engine_version are not provided, servers can use the most recent workflow_engine_version
-/// of workflow_engine that WES instance uses to process the request if supports for the requested workflow_type.
+/// To execute a workflow, send a run request including all the details needed
+/// to begin downloading and executing a given workflow. If workflow_engine and
+/// workflow_engine_version are not provided, servers can use the most recent
+/// workflow_engine_version of workflow_engine that WES instance uses to process
+/// the request if supports for the requested workflow_type.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromRow)]
 pub struct ValidatedRunRequest {
-    /// **REQUIRED** The workflow run parameterizations (JSON encoded), including input and output file locations
+    /// **REQUIRED** The workflow run parameterizations (JSON encoded),
+    /// including input and output file locations
     #[serde(rename = "workflow_params", skip_serializing_if = "Option::is_none")]
     pub workflow_params: Option<serde_json::Value>,
 
-    /// **REQUIRED** The workflow descriptor type, must be "CWL" or "WDL" currently
-    /// (or another alternative supported by this WES instance)
+    /// **REQUIRED** The workflow descriptor type, must be "CWL" or "WDL"
+    /// currently (or another alternative supported by this WES instance)
     #[serde(rename = "workflow_type")]
     pub workflow_type: String,
 
-    /// **REQUIRED** The workflow descriptor type version, must be one supported by this WES instance
+    /// **REQUIRED** The workflow descriptor type version, must be one supported
+    /// by this WES instance
     #[serde(rename = "workflow_type_version")]
     pub workflow_type_version: String,
 
@@ -815,27 +858,25 @@ pub struct ValidatedRunRequest {
     pub tags: Option<std::collections::HashMap<String, String>>,
 
     /// Additional parameters to pass to the workflow engine
-    #[serde(
-        rename = "workflow_engine_parameters",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(rename = "workflow_engine_parameters", skip_serializing_if = "Option::is_none")]
     pub workflow_engine_parameters: Option<Vec<ValidatedParam>>,
 
-    /// The workflow engine, must be one supported by this WES instance. Required if workflow_engine_version is provided.
+    /// The workflow engine, must be one supported by this WES instance.
+    /// Required if workflow_engine_version is provided.
     #[serde(rename = "workflow_engine", skip_serializing_if = "Option::is_none")]
     pub workflow_engine: Option<String>,
 
-    /// The workflow engine version, must be one supported by this WES instance. If workflow_engine is provided,
-    /// but workflow_engine_version is not, servers can make no assumptions with regard to the engine version
-    /// the WES instance uses to process the request if that WES instance supports multiple versions of the requested engine.
-    #[serde(
-        rename = "workflow_engine_version",
-        skip_serializing_if = "Option::is_none"
-    )]
+    /// The workflow engine version, must be one supported by this WES instance.
+    /// If workflow_engine is provided, but workflow_engine_version is not,
+    /// servers can make no assumptions with regard to the engine version
+    /// the WES instance uses to process the request if that WES instance
+    /// supports multiple versions of the requested engine.
+    #[serde(rename = "workflow_engine_version", skip_serializing_if = "Option::is_none")]
     pub workflow_engine_version: Option<String>,
 
-    /// **REQUIRED** The workflow CWL or WDL document. When `workflow_attachments` is used to attach files,
-    /// the `workflow_url` may be a relative path to one of the attachments.
+    /// **REQUIRED** The workflow CWL or WDL document. When
+    /// `workflow_attachments` is used to attach files, the `workflow_url`
+    /// may be a relative path to one of the attachments.
     #[serde(rename = "workflow_url")]
     pub workflow_url: String,
 }

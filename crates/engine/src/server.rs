@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
+use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
+
 use crate::engine::{Engine, NoopEngine};
 use crate::error::EngineResult;
 use crate::runtime::EngineRuntime;
-use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
-use std::sync::Arc;
 
 pub async fn bootstrap<E>(
     engine: E,

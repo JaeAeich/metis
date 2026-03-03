@@ -1,9 +1,11 @@
-use crate::clients::Valkey;
-use crate::error::EngineResult;
 use std::collections::HashMap;
 use std::sync::Arc;
+
 use tokio::sync::RwLock;
 use uuid::Uuid;
+
+use crate::clients::Valkey;
+use crate::error::EngineResult;
 
 struct EngineProcessHandle {
     pid: u32,
@@ -16,18 +18,12 @@ pub struct PidStore {
 
 impl PidStore {
     pub fn new(valkey: Option<Arc<Valkey>>) -> Self {
-        Self {
-            local: RwLock::new(HashMap::new()),
-            valkey,
-        }
+        Self { local: RwLock::new(HashMap::new()), valkey }
     }
 
     pub async fn store(&self, run_id: &str, pid: u32) -> EngineResult<()> {
         if let Ok(run_uuid) = Uuid::parse_str(run_id) {
-            self.local
-                .write()
-                .await
-                .insert(run_uuid, EngineProcessHandle { pid });
+            self.local.write().await.insert(run_uuid, EngineProcessHandle { pid });
         }
 
         if let Some(valkey) = &self.valkey {

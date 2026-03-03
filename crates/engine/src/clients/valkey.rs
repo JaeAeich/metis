@@ -1,9 +1,13 @@
-use crate::error::EngineResult;
-use common::configs::{EngineConfig, ValkeyConfig};
-use redis::{AsyncCommands, aio::MultiplexedConnection};
 use std::sync::Arc;
+
+use common::configs::{EngineConfig, ValkeyConfig};
+use redis::AsyncCommands;
+use redis::aio::MultiplexedConnection;
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
-use tokio::{sync::Mutex, time::sleep};
+use tokio::sync::Mutex;
+use tokio::time::sleep;
+
+use crate::error::EngineResult;
 
 /// Shared Valkey client wrapper
 #[derive(Clone)]
@@ -30,10 +34,7 @@ impl Valkey {
 
         // Select DB if specified
         if valkey_config.db > 0 {
-            let _: () = redis::cmd("SELECT")
-                .arg(valkey_config.db)
-                .query_async(&mut conn)
-                .await?;
+            let _: () = redis::cmd("SELECT").arg(valkey_config.db).query_async(&mut conn).await?;
         }
 
         Ok(Self {
@@ -63,11 +64,7 @@ impl Valkey {
         let config_json = serde_json::to_string(&*self.engine_config)?;
 
         let mut pipeline = redis::pipe();
-        pipeline
-            .cmd("SETEX")
-            .arg(&config_key)
-            .arg(self.ttl)
-            .arg(config_json);
+        pipeline.cmd("SETEX").arg(&config_key).arg(self.ttl).arg(config_json);
 
         let mut conn = self.conn.lock().await;
         let _: () = pipeline.query_async(&mut *conn).await?;
@@ -125,9 +122,7 @@ impl Valkey {
 
         let mut pipe = redis::pipe();
         pipe.cmd("INCR").arg(&engine_runs);
-        pipe.cmd("SET")
-            .arg(&metis_runs)
-            .arg(self.engine_config.id.to_string());
+        pipe.cmd("SET").arg(&metis_runs).arg(self.engine_config.id.to_string());
 
         let _: () = pipe.query_async(&mut *conn).await?;
         Ok(())
@@ -252,10 +247,8 @@ async fn test_valkey_register_and_heartbeat() -> EngineResult<()> {
     let mut conn = valkey.conn.lock().await;
 
     // Clean previous keys if any
-    let config_key = format!(
-        "metis.engines.config.{}.{}",
-        engine_config.name, engine_config.version
-    );
+    let config_key =
+        format!("metis.engines.config.{}.{}", engine_config.name, engine_config.version);
     let cpu_key = format!(
         "metis.engines.{}.{}.{}.cpu",
         engine_config.name, engine_config.version, engine_config.id
@@ -274,10 +267,8 @@ async fn test_valkey_register_and_heartbeat() -> EngineResult<()> {
 
     // Verify config key is written
     let mut conn = valkey.conn.lock().await;
-    let config_key = format!(
-        "metis.engines.config.{}.{}",
-        engine_config.name, engine_config.version
-    );
+    let config_key =
+        format!("metis.engines.config.{}.{}", engine_config.name, engine_config.version);
     let cfg: String = conn.get(&config_key).await?;
     drop(conn);
 

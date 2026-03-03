@@ -1,12 +1,13 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use clap::{Parser, Subcommand};
 use common::configs::{
     EngineConfig, FullEngineConfig, NatsConfig, RunConfigTemplate, RunsConfig, WorkdirConfig,
 };
 use common::models::RunRequest;
 use common::validators::EngineRequestValidator;
-use engine::{EngineError, EngineResult, NoopEngine, EngineRuntime};
-use std::path::PathBuf;
-use std::sync::Arc;
+use engine::{EngineError, EngineResult, EngineRuntime, NoopEngine};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
@@ -73,25 +74,14 @@ async fn main() -> EngineResult<()> {
     info!("Starting Metis Engine v{}", env!("CARGO_PKG_VERSION"));
 
     match cli.command {
-        Commands::Run {
-            request,
-            file,
-            engine_config,
-        } => {
+        Commands::Run { request, file, engine_config } => {
             run_single_workflow(request, file, engine_config).await?;
-        }
-        Commands::Server {
-            engine_config,
-            nats_url,
-            notification_subject,
-        } => {
-            let nats_config = NatsConfig {
-                url: nats_url,
-                notification_subject,
-            };
+        },
+        Commands::Server { engine_config, nats_url, notification_subject } => {
+            let nats_config = NatsConfig { url: nats_url, notification_subject };
 
             run_server(engine_config, nats_config).await?;
-        }
+        },
     }
 
     Ok(())
@@ -108,7 +98,7 @@ fn init_logging(log_level: &str, json_logging: bool) -> EngineResult<()> {
         _ => {
             eprintln!("Invalid log level: {}, defaulting to info", log_level);
             tracing::Level::INFO
-        }
+        },
     };
 
     let subscriber = tracing_subscriber::fmt()
@@ -145,7 +135,7 @@ async fn load_engine_config(config_path: Option<PathBuf>) -> EngineResult<FullEn
                         "Loaded full engine configuration"
                     );
                     Ok(config)
-                }
+                },
                 Err(full_err) => {
                     let engine_config: EngineConfig = serde_yaml::from_str(&config_content)
                         .map_err(|engine_err| {
@@ -162,9 +152,9 @@ async fn load_engine_config(config_path: Option<PathBuf>) -> EngineResult<FullEn
                         path.display()
                     );
                     Ok(wrap_engine_config(engine_config))
-                }
+                },
             }
-        }
+        },
         None => Err(EngineError::Config(
             "No engine configuration file provided. Use --engine-config <path>".to_string(),
         )),
@@ -210,17 +200,17 @@ async fn parse_wes_request(
                     e
                 ))
             })?
-        }
+        },
         (Some(_), Some(_)) => {
             return Err(EngineError::Config(
                 "Cannot specify both request JSON and file path".to_string(),
             ));
-        }
+        },
         (None, None) => {
             return Err(EngineError::Config(
                 "Must specify either request JSON or file path".to_string(),
             ));
-        }
+        },
     };
 
     let request: RunRequest = serde_json::from_str(&json_content)
@@ -272,9 +262,7 @@ async fn run_single_workflow(
     .await?;
 
     let run_id = Uuid::now_v7();
-    let summary = runtime
-        .run(run_id, "cli".to_string(), validated_request)
-        .await?;
+    let summary = runtime.run(run_id, "cli".to_string(), validated_request).await?;
 
     info!(
         run_id = %summary.run_id,
@@ -348,5 +336,4 @@ mod tests {
         let request = result.unwrap();
         assert_eq!(request.workflow_type, "WDL");
     }
-
 }

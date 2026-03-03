@@ -1,8 +1,11 @@
-use crate::error::{EngineError, EngineResult};
-use crate::models::BuildContext;
+use std::collections::HashMap;
+
 use chrono::Utc;
 use common::configs::FullEngineConfig;
-use std::collections::HashMap;
+use tracing::error;
+
+use crate::error::{EngineError, EngineResult};
+use crate::models::BuildContext;
 
 pub struct WorkdirPaths {
     pub workdir: String,
@@ -31,13 +34,19 @@ impl WorkdirManager {
             .replace("{timestamp}", &timestamp.timestamp().to_string());
 
         let workdir = format!("{}/{}", config.runs.workdir.base, pattern);
-        std::fs::create_dir_all(&workdir).map_err(|e| EngineError::Io(e))?;
+        std::fs::create_dir_all(&workdir).map_err(|e| {
+            error!("Failed to create workdir '{}': {}", workdir, e);
+            EngineError::Io(e)
+        })?;
 
         let mut subdirs = HashMap::new();
         if let Some(ref subdir_config) = config.runs.workdir.subdirs {
             for (name, subdir) in subdir_config {
                 let full_path = format!("{}/{}", workdir, subdir);
-                std::fs::create_dir_all(&full_path).map_err(|e| EngineError::Io(e))?;
+                std::fs::create_dir_all(&full_path).map_err(|e| {
+                    error!("Failed to create subdir '{}': {}", full_path, e);
+                    EngineError::Io(e)
+                })?;
                 subdirs.insert(name.clone(), full_path);
             }
         }
@@ -61,9 +70,10 @@ impl WorkdirManager {
     }
 
     pub async fn setup(workdir: &str) -> EngineResult<()> {
-        tokio::fs::create_dir_all(workdir)
-            .await
-            .map_err(|e| EngineError::Io(e))?;
+        tokio::fs::create_dir_all(workdir).await.map_err(|e| {
+            error!("Failed to create workdir '{}': {}", workdir, e);
+            EngineError::Io(e)
+        })?;
         Ok(())
     }
 }

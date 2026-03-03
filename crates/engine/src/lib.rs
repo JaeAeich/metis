@@ -1,3 +1,12 @@
+#![deny(clippy::all)]
+#![deny(clippy::perf)]
+#![deny(clippy::complexity)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+#![deny(clippy::dbg_macro)]
+#![forbid(unsafe_code)]
+
 pub mod clients;
 pub mod command;
 pub mod context;
@@ -8,9 +17,11 @@ pub mod models;
 pub mod pid_store;
 pub mod runtime;
 pub mod server;
+pub mod workdir;
 
 pub use engine::{Engine, NoopEngine};
 pub use error::{EngineError, EngineResult};
 pub use execution::{ExecutionOutput, ProcessExecutor};
 pub use pid_store::PidStore;
 pub use runtime::EngineRuntime;
+pub use workdir::{WorkdirManager, WorkdirPaths};

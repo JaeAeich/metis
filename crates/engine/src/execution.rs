@@ -1,9 +1,11 @@
-use crate::error::{EngineError, EngineResult};
-use crate::models::CommandInfo;
 use std::process::ExitStatus;
+
 use tokio::io::AsyncBufReadExt;
 use tokio::process::{Child, Command};
 use tracing::{debug, info, warn};
+
+use crate::error::{EngineError, EngineResult};
+use crate::models::CommandInfo;
 
 pub struct ExecutionOutput {
     pub exit_status: ExitStatus,
@@ -14,9 +16,7 @@ pub struct ExecutionOutput {
 pub struct ProcessExecutor;
 
 impl ProcessExecutor {
-    pub async fn execute(
-        command_info: &CommandInfo,
-    ) -> EngineResult<Child> {
+    pub async fn execute(command_info: &CommandInfo) -> EngineResult<Child> {
         let mut cmd = if command_info.env_vars.is_empty() {
             Command::new("sh")
         } else {
@@ -82,7 +82,7 @@ impl ProcessExecutor {
                 Err(e) => {
                     warn!(error = %e, "Failed to join stdout reader task");
                     String::new()
-                }
+                },
             }
         } else {
             String::new()
@@ -94,17 +94,13 @@ impl ProcessExecutor {
                 Err(e) => {
                     warn!(error = %e, "Failed to join stderr reader task");
                     String::new()
-                }
+                },
             }
         } else {
             String::new()
         };
 
-        Ok(ExecutionOutput {
-            exit_status: status,
-            stdout,
-            stderr,
-        })
+        Ok(ExecutionOutput { exit_status: status, stdout, stderr })
     }
 
     pub async fn cancel(pid: u32) -> EngineResult<()> {
@@ -130,13 +126,13 @@ impl ProcessExecutor {
                             pid, e
                         ))
                     })?;
-                }
+                },
                 Err(Errno::ESRCH) => {
                     info!(pid = %pid, "Process has already exited");
-                }
+                },
                 Err(e) => {
                     warn!(pid = %pid, error = %e, "Failed to check process status before SIGKILL");
-                }
+                },
             }
         }
 

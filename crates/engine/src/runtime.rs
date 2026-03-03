@@ -1,3 +1,18 @@
+use std::collections::{HashMap, HashSet};
+use std::process::ExitStatus;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
+
+use chrono::Utc;
+use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
+use common::models::{RunRequestMessage, RunSummary, State, TaskListResponse, ValidatedRunRequest};
+use futures::StreamExt;
+use serde::Deserialize;
+use tokio::sync::RwLock;
+use tracing::{error, info, warn};
+use uuid::Uuid;
+
 use crate::clients::{Nats, Valkey};
 use crate::command::EngineCommandBuilder;
 use crate::engine::Engine;
@@ -5,19 +20,7 @@ use crate::error::{EngineError, EngineResult};
 use crate::execution::ProcessExecutor;
 use crate::models::{BuildContext, CommandInfo};
 use crate::pid_store::PidStore;
-use chrono::Utc;
-use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
-use common::models::{RunRequestMessage, RunSummary, State, TaskListResponse, ValidatedRunRequest};
-use futures::StreamExt;
-use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
-use std::process::ExitStatus;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
-use tokio::sync::RwLock;
-use tracing::{error, info, warn};
-use uuid::Uuid;
+use crate::workdir::WorkdirManager;
 
 pub struct ExecutionContext {
     pub run_id: Uuid,
@@ -57,17 +60,13 @@ impl EngineRuntime {
         let command_builder = Arc::new(EngineCommandBuilder::new(Arc::new(config.engine.clone())));
 
         let valkey = if let Some(valkey_config) = valkey_config {
-            Some(Arc::new(
-                Valkey::new(valkey_config, config.engine.clone(), 60).await?,
-            ))
+            Some(Arc::new(Valkey::new(valkey_config, config.engine.clone(), 60).await?))
         } else {
             None
         };
 
         let nats = if let Some(nats_config) = nats_config {
-            Some(Arc::new(
-                Nats::new(&nats_config, config.engine.clone()).await?,
-            ))
+            Some(Arc::new(Nats::new(&nats_config, config.engine.clone()).await?))
         } else {
             None
         };
@@ -121,8 +120,7 @@ impl EngineRuntime {
             "engine_version": self.config.engine.version,
             "timestamp": Utc::now().to_rfc3339(),
         });
-        nats.publish_notification(registration_event.to_string().into_bytes())
-            .await?;
+        nats.publish_notification(registration_event.to_string().into_bytes()).await?;
 
         let run_subscribers = nats.subscribe_runs().await?;
         let cancel_subscriber = nats.subscribe_cancel().await?;
@@ -148,9 +146,8 @@ impl EngineRuntime {
                 while let Some(message) = subscriber.next().await {
                     let runtime = Arc::clone(&runtime);
                     tokio::spawn(async move {
-                        if let Err(e) = runtime
-                            .handle_cancel_message(message.payload.as_ref())
-                            .await
+                        if let Err(e) =
+                            runtime.handle_cancel_message(message.payload.as_ref()).await
                         {
                             error!(error = %e, "Failed to handle cancel message");
                         }
@@ -173,9 +170,7 @@ impl EngineRuntime {
             valkey.add_run(&run_id.to_string()).await?;
         }
 
-        let run_result = self
-            .run(run_id, run_message.user_id.clone(), run_message.request)
-            .await;
+        let run_result = self.run(run_id, run_message.user_id.clone(), run_message.request).await;
 
         if let Some(valkey) = &self.valkey {
             valkey.remove_run(&run_id.to_string()).await?;
@@ -190,10 +185,9 @@ impl EngineRuntime {
                         "state": summary.state,
                         "timestamp": Utc::now().to_rfc3339(),
                     });
-                    nats.publish_notification(event.to_string().into_bytes())
-                        .await?;
+                    nats.publish_notification(event.to_string().into_bytes()).await?;
                 }
-            }
+            },
             Err(e) => {
                 if let Some(nats) = &self.nats {
                     let event = serde_json::json!({
@@ -202,11 +196,10 @@ impl EngineRuntime {
                         "error": e.to_string(),
                         "timestamp": Utc::now().to_rfc3339(),
                     });
-                    nats.publish_notification(event.to_string().into_bytes())
-                        .await?;
+                    nats.publish_notification(event.to_string().into_bytes()).await?;
                 }
                 return Err(e);
-            }
+            },
         }
 
         Ok(())
@@ -222,8 +215,7 @@ impl EngineRuntime {
                 "run_id": run_id,
                 "timestamp": Utc::now().to_rfc3339(),
             });
-            nats.publish_notification(event.to_string().into_bytes())
-                .await?;
+            nats.publish_notification(event.to_string().into_bytes()).await?;
         }
 
         Ok(())
@@ -241,10 +233,7 @@ impl EngineRuntime {
             ))
         })?;
 
-        Ok(RunRequestMessage {
-            request,
-            user_id: "default".to_string(),
-        })
+        Ok(RunRequestMessage { request, user_id: "default".to_string() })
     }
 
     fn parse_cancel_run_id(payload: &[u8]) -> EngineResult<String> {
@@ -280,7 +269,7 @@ impl EngineRuntime {
         let start_time = Instant::now();
         let started_at = Utc::now();
 
-        let base_context = Self::create_workdir(&self.config, &run_id.to_string(), &user_id)?;
+        let base_context = WorkdirManager::create(&self.config, &run_id.to_string(), &user_id)?;
         let ctx = ExecutionContext {
             run_id,
             user_id: user_id.clone(),
@@ -310,7 +299,7 @@ impl EngineRuntime {
 
         // Step 1: Setup execution environment
         span.record("state", "initializing");
-        self.setup_execution_environment(&ctx).await?;
+        WorkdirManager::setup(&ctx.workdir).await?;
 
         // Step 2: Build execution command
         span.record("state", "building");
@@ -378,8 +367,7 @@ impl EngineRuntime {
 
         // Step 6: Update database with results
         span.record("state", "updating_db");
-        self.update_database(&ctx, &run_summary, &run_log, &task_logs)
-            .await?;
+        self.update_database(&ctx, &run_summary, &run_log, &task_logs).await?;
 
         // Step 7: Cleanup
         span.record("state", "cleanup");
@@ -412,10 +400,7 @@ impl EngineRuntime {
         println!("Run ID:         {}", ctx.run_id);
         println!("User ID:        {}", ctx.user_id);
         println!("Workflow URL:   {}", ctx.workflow_url);
-        println!(
-            "Workflow Type:  {} {}",
-            req.workflow_type, req.workflow_type_version
-        );
+        println!("Workflow Type:  {} {}", req.workflow_type, req.workflow_type_version);
         println!();
         println!("Staging Area:");
         println!("  workdir:   {}", ctx.workdir);
@@ -520,7 +505,7 @@ impl EngineRuntime {
             None => {
                 warn!("No PID found for run_id, workflow may have already completed");
                 return Ok(());
-            }
+            },
         };
 
         info!(pid = pid, "Found process to cancel");
@@ -537,24 +522,8 @@ impl EngineRuntime {
         self.cancelled_runs.read().await.contains(run_id)
     }
 
-    /// Setup the execution environment - FINAL, cannot be overridden
-    async fn setup_execution_environment(&self, ctx: &ExecutionContext) -> Result<(), EngineError> {
-        info!(workdir = %ctx.workdir, "Setting up execution environment");
-
-        // Create working directory
-        tokio::fs::create_dir_all(&ctx.workdir).await.map_err(|e| {
-            EngineError::Generic(format!(
-                "Failed to create working directory {}: {}",
-                ctx.workdir, e
-            ))
-        })?;
-
-        // TODO: Download workflow files to local path
-        // TODO: Setup subdirectories as configured
-        Ok(())
-    }
-
-    /// Create build context for command generation - FINAL, cannot be overridden
+    /// Create build context for command generation - FINAL, cannot be
+    /// overridden
     async fn create_build_context(
         &self,
         ctx: &ExecutionContext,
@@ -589,7 +558,8 @@ impl EngineRuntime {
     }
 
     /// Execute the workflow command - FINAL, cannot be overridden
-    /// Parse execution results and delegate to engine-specific methods - FINAL, cannot be overridden
+    /// Parse execution results and delegate to engine-specific methods - FINAL,
+    /// cannot be overridden
     async fn parse_execution_results(
         &self,
         ctx: &ExecutionContext,
@@ -731,9 +701,6 @@ impl EngineRuntime {
     ) -> Result<TaskListResponse, EngineError> {
         let task_logs = self.engine.get_task_logs().await?.unwrap_or_default();
 
-        Ok(TaskListResponse {
-            task_logs: Some(task_logs),
-            next_page_token: None,
-        })
+        Ok(TaskListResponse { task_logs: Some(task_logs), next_page_token: None })
     }
 }

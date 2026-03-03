@@ -1,9 +1,10 @@
-use crate::models::{BuildContext, CommandInfo};
-use common::configs::{EngineConfig, EngineParam, ParamType};
-use common::models::ValidatedParam;
-use common::models::ValidatedRunRequest;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use common::configs::{EngineConfig, EngineParam, ParamType};
+use common::models::{ValidatedParam, ValidatedRunRequest};
+
+use crate::models::{BuildContext, CommandInfo};
 
 pub struct EngineCommandBuilder {
     config: Arc<EngineConfig>,
@@ -29,10 +30,7 @@ impl EngineCommandBuilder {
 
         let mut template_vars = context.template_vars();
         template_vars.insert("engine_params".to_string(), context.engine_params.clone());
-        template_vars.insert(
-            "workflow_params".to_string(),
-            context.workflow_params.clone(),
-        );
+        template_vars.insert("workflow_params".to_string(), context.workflow_params.clone());
 
         let command = self.replace_template_vars(&self.config().command_template, &template_vars);
 
@@ -89,7 +87,7 @@ impl EngineCommandBuilder {
                         let val_str = value.as_str().ok_or("Expected string")?;
                         let expanded = context.replace_vars(val_str);
                         format!("{} {}", param.spec.cli_flag, expanded)
-                    }
+                    },
                     _ => format!("{} {}", param.spec.cli_flag, value),
                 };
 
@@ -110,23 +108,18 @@ impl EngineCommandBuilder {
         let bool_val = value
             .as_bool()
             .or_else(|| {
-                value
-                    .as_str()
-                    .and_then(|v| match v.to_ascii_lowercase().as_str() {
-                        "true" => Some(true),
-                        "false" => Some(false),
-                        _ => None,
-                    })
+                value.as_str().and_then(|v| match v.to_ascii_lowercase().as_str() {
+                    "true" => Some(true),
+                    "false" => Some(false),
+                    _ => None,
+                })
             })
             .unwrap_or(false);
         if !bool_val {
             return Ok(String::new());
         }
 
-        let style = spec
-            .boolean_style
-            .as_ref()
-            .unwrap_or(&common::configs::BooleanStyle::Flag);
+        let style = spec.boolean_style.as_ref().unwrap_or(&common::configs::BooleanStyle::Flag);
         Ok(match style {
             common::configs::BooleanStyle::Flag => spec.cli_flag.clone(),
             common::configs::BooleanStyle::Value => format!("{} true", spec.cli_flag),
@@ -140,10 +133,7 @@ impl EngineCommandBuilder {
         value: &serde_json::Value,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let list = value.as_array().ok_or("Expected array")?;
-        let items: Vec<String> = list
-            .iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .collect();
+        let items: Vec<String> = list.iter().filter_map(|v| v.as_str().map(String::from)).collect();
 
         let separator = spec.list_separator.as_deref().unwrap_or(",");
 
@@ -159,9 +149,7 @@ impl EngineCommandBuilder {
             return Ok(String::new());
         };
 
-        let params_map = params
-            .as_object()
-            .ok_or("workflow_params must be an object")?;
+        let params_map = params.as_object().ok_or("workflow_params must be an object")?;
         let style = &self.config().workflow_params.style;
 
         match style.method {
@@ -177,19 +165,17 @@ impl EngineCommandBuilder {
                             _ => {
                                 let s = v.to_string();
                                 s.trim_matches('"').to_string()
-                            }
+                            },
                         };
                         format!("{}{}{}{}", prefix, k, separator, val)
                     })
                     .collect();
 
                 Ok(param_strings.join(" "))
-            }
+            },
             common::configs::WorkflowParamsMethod::File => {
-                let file_path = style
-                    .file_path
-                    .as_deref()
-                    .unwrap_or("{workdir}/workflow-params.json");
+                let file_path =
+                    style.file_path.as_deref().unwrap_or("{workdir}/workflow-params.json");
                 let expanded_path = context.replace_vars(file_path);
 
                 let content = match style
@@ -199,7 +185,7 @@ impl EngineCommandBuilder {
                 {
                     common::configs::WorkflowParamsFormat::Json => {
                         serde_json::to_string_pretty(&params)?
-                    }
+                    },
                     common::configs::WorkflowParamsFormat::Yaml => serde_yaml::to_string(&params)?,
                     common::configs::WorkflowParamsFormat::Properties => {
                         let mut props = String::new();
@@ -211,14 +197,14 @@ impl EngineCommandBuilder {
                             props.push_str(&format!("{}={}\n", k, val));
                         }
                         props
-                    }
+                    },
                 };
 
                 std::fs::write(&expanded_path, content)?;
 
                 let flag = style.params_file_flag.as_deref().unwrap_or("--params-file");
                 Ok(format!("{} {}", flag, expanded_path))
-            }
+            },
         }
     }
 

@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Base configuration shared across all services
@@ -56,25 +57,19 @@ pub struct DatabaseConfig {
 
 impl BaseConfig {
     pub fn from_env() -> Self {
-        envy::prefixed("METIS_")
-            .from_env::<Self>()
-            .unwrap_or_default()
+        envy::prefixed("METIS_").from_env::<Self>().unwrap_or_default()
     }
 }
 
 impl NatsConfig {
     pub fn from_env() -> Self {
-        envy::prefixed("NATS_")
-            .from_env::<Self>()
-            .unwrap_or_default()
+        envy::prefixed("NATS_").from_env::<Self>().unwrap_or_default()
     }
 }
 
 impl ValkeyConfig {
     pub fn from_env() -> Self {
-        envy::prefixed("VALKEY_")
-            .from_env::<Self>()
-            .unwrap_or_default()
+        envy::prefixed("VALKEY_").from_env::<Self>().unwrap_or_default()
     }
 }
 impl DatabaseConfig {
@@ -107,9 +102,7 @@ impl Default for NatsConfig {
 
 impl Default for DatabaseConfig {
     fn default() -> Self {
-        Self {
-            url: "postgresql://localhost:5432/metis".into(),
-        }
+        Self { url: "postgresql://localhost:5432/metis".into() }
     }
 }
 

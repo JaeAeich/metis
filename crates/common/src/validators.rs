@@ -1,13 +1,16 @@
+use std::collections::HashMap;
+
+use regex::Regex;
+
 use crate::configs::{
     EngineConfig, EngineParam, MatchType, ParamType, UnknownBehavior, Validation,
 };
 use crate::errors::ValidationError;
 use crate::models::{RunRequest, ValidatedParam, ValidatedRunRequest};
-use regex::Regex;
-use std::collections::HashMap;
 
 /// Validates WES requests at the API layer before command building.
-/// This ensures bad requests are rejected immediately with clear error messages.
+/// This ensures bad requests are rejected immediately with clear error
+/// messages.
 pub struct EngineRequestValidator {
     config: EngineConfig,
 }
@@ -137,7 +140,7 @@ impl EngineRequestValidator {
                                 denied.pattern
                             );
                             false
-                        }
+                        },
                     },
                 };
 
@@ -199,9 +202,7 @@ impl EngineRequestValidator {
             } else {
                 // Handle missing required parameters or strict defaults
                 if param_spec.required {
-                    return Err(ValidationError::RequiredMissing(
-                        param_spec.names[0].clone(),
-                    ));
+                    return Err(ValidationError::RequiredMissing(param_spec.names[0].clone()));
                 } else if param_spec.strict_default && param_spec.default.is_some() {
                     validated.push(ValidatedParam {
                         spec: param_spec.clone(),
@@ -251,10 +252,7 @@ impl EngineRequestValidator {
             }
         }
 
-        Ok(ValidatedParam {
-            spec: param_spec.clone(),
-            value: Some(value),
-        })
+        Ok(ValidatedParam { spec: param_spec.clone(), value: Some(value) })
     }
 
     /// Parse parameter value with proper error handling
@@ -270,7 +268,7 @@ impl EngineRequestValidator {
                 // If JSON parsing fails, treat as string
                 // This handles cases where users pass unquoted strings
                 Ok(serde_json::Value::String(value_str.to_string()))
-            }
+            },
         }
     }
 
@@ -285,10 +283,7 @@ impl EngineRequestValidator {
             return Ok(());
         };
 
-        let unknown: Vec<_> = params
-            .keys()
-            .filter(|k| !handled_names.contains(*k))
-            .collect();
+        let unknown: Vec<_> = params.keys().filter(|k| !handled_names.contains(*k)).collect();
 
         if unknown.is_empty() {
             return Ok(());
@@ -299,11 +294,11 @@ impl EngineRequestValidator {
             UnknownBehavior::Pass => {
                 self.pass_unknown_parameters(params, &unknown, validated);
                 Ok(())
-            }
+            },
             UnknownBehavior::Strip => {
                 tracing::warn!("Stripped unknown parameters: {:?}", unknown);
                 Ok(())
-            }
+            },
         }
     }
 
@@ -359,7 +354,7 @@ impl EngineRequestValidator {
             (ParamType::Float, serde_json::Value::String(s)) => s.parse::<f64>().is_ok(),
             (ParamType::Bool, serde_json::Value::String(s)) => {
                 matches!(s.to_lowercase().as_str(), "true" | "false")
-            }
+            },
             _ => false,
         };
 
@@ -382,20 +377,20 @@ impl EngineRequestValidator {
         match validation {
             Validation::Enum { allowed, message } => {
                 self.validate_enum(value, allowed, message, name)
-            }
+            },
             Validation::Regex { pattern, message } => {
                 self.validate_regex(value, pattern, message, name)
-            }
+            },
             Validation::Range { min, max, message } => {
                 self.validate_range(value, *min, *max, message, name)
-            }
+            },
             Validation::Custom { rule, message } => {
                 self.validate_custom_rule(rule, value, name, message)
-            }
+            },
             Validation::FileExists { message } => self.validate_file_exists(value, message, name),
             Validation::FileExtension { allowed, message } => {
                 self.validate_file_extension(value, allowed, message, name)
-            }
+            },
         }
     }
 
@@ -417,7 +412,7 @@ impl EngineRequestValidator {
                             .unwrap_or_else(|| format!("Must be one of: {}", allowed.join(", "))),
                     ));
                 }
-            }
+            },
             serde_json::Value::Array(arr) => {
                 for item in arr {
                     if let Some(s) = item.as_str()
@@ -431,13 +426,13 @@ impl EngineRequestValidator {
                         ));
                     }
                 }
-            }
+            },
             _ => {
                 return Err(ValidationError::ValidationFailed(
                     name.to_string(),
                     "Expected string or array for enum validation".to_string(),
                 ));
-            }
+            },
         }
         Ok(())
     }
@@ -499,9 +494,7 @@ impl EngineRequestValidator {
         {
             return Err(ValidationError::ValidationFailed(
                 name.to_string(),
-                message
-                    .clone()
-                    .unwrap_or_else(|| format!("Must be >= {}", min_val)),
+                message.clone().unwrap_or_else(|| format!("Must be >= {}", min_val)),
             ));
         }
 
@@ -510,9 +503,7 @@ impl EngineRequestValidator {
         {
             return Err(ValidationError::ValidationFailed(
                 name.to_string(),
-                message
-                    .clone()
-                    .unwrap_or_else(|| format!("Must be <= {}", max_val)),
+                message.clone().unwrap_or_else(|| format!("Must be <= {}", max_val)),
             ));
         }
         Ok(())
@@ -535,9 +526,7 @@ impl EngineRequestValidator {
         if !std::path::Path::new(path).exists() {
             return Err(ValidationError::ValidationFailed(
                 name.to_string(),
-                message
-                    .clone()
-                    .unwrap_or_else(|| format!("File '{}' does not exist", path)),
+                message.clone().unwrap_or_else(|| format!("File '{}' does not exist", path)),
             ));
         }
         Ok(())
@@ -573,10 +562,7 @@ impl EngineRequestValidator {
             return Err(ValidationError::ValidationFailed(
                 name.to_string(),
                 message.clone().unwrap_or_else(|| {
-                    format!(
-                        "File must have one of these extensions: {}",
-                        allowed.join(", ")
-                    )
+                    format!("File must have one of these extensions: {}", allowed.join(", "))
                 }),
             ));
         }
@@ -609,7 +595,7 @@ impl EngineRequestValidator {
                             .unwrap_or_else(|| "Path traversal (..) is not allowed".to_string()),
                     ));
                 }
-            }
+            },
             "writable_directory" => {
                 let val_str = value.as_str().ok_or_else(|| {
                     ValidationError::ValidationFailed(
@@ -622,15 +608,13 @@ impl EngineRequestValidator {
                 if path.exists() && !path.is_dir() {
                     return Err(ValidationError::ValidationFailed(
                         name.to_string(),
-                        message
-                            .clone()
-                            .unwrap_or_else(|| "Path is not a directory".to_string()),
+                        message.clone().unwrap_or_else(|| "Path is not a directory".to_string()),
                     ));
                     // TODO: Check if directory is actually writable
-                    // This would require testing write permissions which may not be desired
-                    // in validation phase
+                    // This would require testing write permissions which may
+                    // not be desired in validation phase
                 }
-            }
+            },
             "absolute_path" => {
                 let val_str = value.as_str().ok_or_else(|| {
                     ValidationError::ValidationFailed(
@@ -642,12 +626,10 @@ impl EngineRequestValidator {
                 if !std::path::Path::new(val_str).is_absolute() {
                     return Err(ValidationError::ValidationFailed(
                         name.to_string(),
-                        message
-                            .clone()
-                            .unwrap_or_else(|| "Path must be absolute".to_string()),
+                        message.clone().unwrap_or_else(|| "Path must be absolute".to_string()),
                     ));
                 }
-            }
+            },
             "safe_filename" => {
                 let val_str = value.as_str().ok_or_else(|| {
                     ValidationError::ValidationFailed(
@@ -666,10 +648,10 @@ impl EngineRequestValidator {
                             .unwrap_or_else(|| "Filename contains unsafe characters".to_string()),
                     ));
                 }
-            }
+            },
             _ => {
                 tracing::warn!("Unknown custom validation rule: {}", rule);
-            }
+            },
         }
         Ok(())
     }

@@ -1,5 +1,6 @@
-use crate::models::BuildContext;
 use std::collections::HashMap;
+
+use crate::models::BuildContext;
 
 impl BuildContext {
     pub fn template_vars(&self) -> HashMap<String, String> {

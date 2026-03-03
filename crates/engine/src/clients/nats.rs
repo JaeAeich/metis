@@ -1,7 +1,9 @@
-use crate::error::{EngineError, EngineResult};
+use std::sync::Arc;
+
 use async_nats::{Client, Subscriber};
 use common::configs::{EngineConfig, NatsConfig};
-use std::sync::Arc;
+
+use crate::error::{EngineError, EngineResult};
 
 pub struct Nats {
     pub client: Arc<Client>,
@@ -26,15 +28,12 @@ impl Nats {
             .workflow_types
             .iter()
             .flat_map(|language| {
-                self.engine_config
-                    .workflow_type_versions
-                    .iter()
-                    .map(move |version| {
-                        format!(
-                            "metis.runs.{}.{}.{}.{}",
-                            self.engine_config.name, self.engine_config.version, language, version
-                        )
-                    })
+                self.engine_config.workflow_type_versions.iter().map(move |version| {
+                    format!(
+                        "metis.runs.{}.{}.{}.{}",
+                        self.engine_config.name, self.engine_config.version, language, version
+                    )
+                })
             })
             .collect()
     }
