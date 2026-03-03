@@ -1,17 +1,25 @@
 [workspace]
+members = [ "crates/common", "crates/engine" ]
 resolver = "3"
-members = ["crates/engine", "crates/common"]
 
 [workspace.dependencies]
-tokio = { version = "1.47.2", features = ["full"] }
-serde = {features = ["derive"], version = "1.0.228"}
-serde_json = "1.0"
-utoipa = {features = ["axum_extras", "uuid", "chrono"], version = "5.4.0"}
-utoipa-scalar = {features = ["axum"], version = "0.3.0"}
-sqlx = {default-features = false, features = ["chrono", "postgres", "runtime-tokio-rustls", "uuid", "macros", "derive", "json"], version = "0.8.6"}
 async-nats = "0.44.2"
-tracing = "0.1.41"
-tracing-subscriber = {features = ["env-filter", "json"], version = "0.3.19"}
 envy = "0.4.2"
-redis = { version = "0.32.7", features = ["tokio-comp", "aio"] }
-uuid = { version = "1.18.1", features = ["v7", "serde"] }
+redis = { features = [ "aio", "tokio-comp" ], version = "0.32.7" }
+serde = { features = [ "derive" ], version = "1.0.228" }
+serde_json = "1.0"
+sqlx = { default-features = false, features = [
+  "chrono",
+  "derive",
+  "json",
+  "macros",
+  "postgres",
+  "runtime-tokio-rustls",
+  "uuid",
+], version = "0.8.6" }
+tokio = { features = [ "full" ], version = "1.47.2" }
+tracing = "0.1.41"
+tracing-subscriber = { features = [ "env-filter", "json" ], version = "0.3.19" }
+utoipa = { features = [ "axum_extras", "chrono", "uuid" ], version = "5.4.0" }
+utoipa-scalar = { features = [ "axum" ], version = "0.3.0" }
+uuid = { features = [ "serde", "v7" ], version = "1.18.1" }

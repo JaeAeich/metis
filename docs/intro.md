@@ -59,10 +59,10 @@ flowchart TB
 
 ### Communication Patterns
 
-| Channel | Purpose |
-|---------|---------|
-| **NATS** | Async job submission, status updates, log streaming |
-| **Valkey** | Plugin heartbeats, execution state, health registry |
+| Channel    | Purpose                                                     |
+|------------|-------------------------------------------------------------|
+| **NATS**   | Async job submission, status updates, log streaming         |
+| **Valkey** | Plugin heartbeats, execution state, health registry         |
 
 ### Health Monitoring
 

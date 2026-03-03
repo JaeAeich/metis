@@ -1,37 +1,34 @@
-[package]
-name = "engine"
-version = "0.1.0"
-edition = "2024"
-
-[lib]
-name = "engine"
-path = "src/lib.rs"
-
 [[bin]]
 name = "engine"
 path = "src/main.rs"
 
 [dependencies]
-tokio = { workspace = true }
+anyhow = "1.0.100"
+async-nats = { workspace = true }
+async-trait = "0.1.89"
+chrono = { features = [ "serde" ], version = "0.4.31" }
+clap = { features = [ "derive" ], version = "4.5.49" }
+common = { path = "../common" }
+futures = "0.3.31"
+nix = { features = [ "process", "signal" ], version = "0.30" }
+redis = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-common = { path = "../common" }
-sqlx = { workspace = true }
-utoipa = { workspace = true }
-async-nats = { workspace = true }
+serde_yaml = "0.9.34"
+sysinfo = "0.37.2"
+tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-async-trait = "0.1.89"
-nix = { version = "0.30", features = ["signal", "process"] }
-serde_yaml = "0.9.34"
-futures = "0.3.31"
-chrono = {features = ["serde"], version = "0.4.31"}
-clap = { version = "4.5.49", features = ["derive"] }
-once_cell = "1.20"
-redis = {workspace = true}
-sysinfo = "0.37.2"
-anyhow = "1.0.100"
-uuid = {workspace = true}
+uuid = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+
+[lib]
+name = "engine"
+path = "src/lib.rs"
+
+[package]
+edition = "2024"
+name = "engine"
+version = "0.1.0"

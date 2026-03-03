@@ -1,0 +1,49 @@
+name: Code Quality
+on:
+  pull_request:
+    branches: ["**"]
+    types: [opened, ready_for_review, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  changes:
+    name: Detect changes
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+            - '**.rs'
+            - '**/Cargo.toml'
+            - '**/Cargo.lock'
+            - 'rust-toolchain.toml'
+            - 'rustfmt.toml'
+            - '.clippy.toml'
+  rustfmt:
+    name: Format
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - run: cargo +nightly fmt --check
+  clippy:
+    name: Clippy
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets --all-features -- -D warnings
