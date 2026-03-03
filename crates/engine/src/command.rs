@@ -4,6 +4,7 @@ use std::sync::Arc;
 use common::configs::{EngineConfig, EngineParam, ParamType};
 use common::models::{ValidatedParam, ValidatedRunRequest};
 
+use crate::error::{EngineError, EngineResult};
 use crate::models::{BuildContext, CommandInfo};
 
 pub struct EngineCommandBuilder {
@@ -23,7 +24,7 @@ impl EngineCommandBuilder {
         &self,
         request: &ValidatedRunRequest,
         context: &BuildContext,
-    ) -> Result<CommandInfo, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> EngineResult<CommandInfo> {
         let validated_params = request.workflow_engine_parameters.as_ref();
 
         let env_vars = self.collect_env_vars(validated_params, context);
@@ -51,7 +52,7 @@ impl EngineCommandBuilder {
         &self,
         params: Option<&Vec<ValidatedParam>>,
         context: &BuildContext,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> EngineResult<String> {
         self.build_engine_params_string_internal(params, context)
     }
 
@@ -59,7 +60,7 @@ impl EngineCommandBuilder {
         &self,
         params: Option<&serde_json::Value>,
         context: &BuildContext,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> EngineResult<String> {
         self.build_workflow_params_string_internal(params, context)
     }
 
@@ -67,7 +68,7 @@ impl EngineCommandBuilder {
         &self,
         params: Option<&Vec<ValidatedParam>>,
         context: &BuildContext,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> EngineResult<String> {
         let Some(params) = params else {
             return Ok(String::new());
         };
@@ -84,7 +85,9 @@ impl EngineCommandBuilder {
                     ParamType::Bool => self.format_bool_param(&param.spec, value)?,
                     ParamType::List => self.format_list_param(&param.spec, value)?,
                     ParamType::String => {
-                        let val_str = value.as_str().ok_or("Expected string")?;
+                        let val_str = value
+                            .as_str()
+                            .ok_or_else(|| EngineError::Validation("Expected string".into()))?;
                         let expanded = context.replace_vars(val_str);
                         format!("{} {}", param.spec.cli_flag, expanded)
                     },
@@ -104,7 +107,7 @@ impl EngineCommandBuilder {
         &self,
         spec: &EngineParam,
         value: &serde_json::Value,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> EngineResult<String> {
         let bool_val = value
             .as_bool()
             .or_else(|| {
@@ -131,8 +134,10 @@ impl EngineCommandBuilder {
         &self,
         spec: &EngineParam,
         value: &serde_json::Value,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let list = value.as_array().ok_or("Expected array")?;
+    ) -> EngineResult<String> {
+        let list = value
+            .as_array()
+            .ok_or_else(|| EngineError::Validation("Expected array".into()))?;
         let items: Vec<String> = list.iter().filter_map(|v| v.as_str().map(String::from)).collect();
 
         let separator = spec.list_separator.as_deref().unwrap_or(",");
@@ -144,12 +149,14 @@ impl EngineCommandBuilder {
         &self,
         params: Option<&serde_json::Value>,
         context: &BuildContext,
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> EngineResult<String> {
         let Some(params) = params else {
             return Ok(String::new());
         };
 
-        let params_map = params.as_object().ok_or("workflow_params must be an object")?;
+        let params_map = params
+            .as_object()
+            .ok_or_else(|| EngineError::Validation("workflow_params must be an object".into()))?;
         let style = &self.config().workflow_params.style;
 
         match style.method {

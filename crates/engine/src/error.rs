@@ -70,6 +70,12 @@ impl From<&str> for EngineError {
     }
 }
 
+impl From<serde_yaml::Error> for EngineError {
+    fn from(err: serde_yaml::Error) -> Self {
+        EngineError::Generic(err.to_string())
+    }
+}
+
 impl From<Box<dyn std::error::Error + Send + Sync>> for EngineError {
     fn from(err: Box<dyn std::error::Error + Send + Sync>) -> Self {
         EngineError::Generic(err.to_string())
