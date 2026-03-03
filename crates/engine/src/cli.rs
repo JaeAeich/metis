@@ -46,6 +46,10 @@ enum Commands {
         /// Engine configuration file
         #[arg(long, value_name = "FILE")]
         engine_config: Option<PathBuf>,
+
+        /// Perform a dry run (validate without executing)
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Start the engine server
     Server {
@@ -72,8 +76,8 @@ pub async fn run_cli<E: Engine + 'static>(engine: E) -> EngineResult<()> {
     info!("Starting Metis Engine");
 
     match cli.command {
-        Commands::Run { request, file, engine_config } => {
-            run_single_workflow(engine, request, file, engine_config).await?;
+        Commands::Run { request, file, engine_config, dry_run } => {
+            run_single_workflow(engine, request, file, engine_config, dry_run).await?;
         },
         Commands::Server { engine_config, nats_url, notification_subject } => {
             let nats_config = NatsConfig { url: nats_url, notification_subject };
@@ -224,6 +228,7 @@ async fn run_single_workflow<E: Engine + 'static>(
     request_json: Option<String>,
     file_path: Option<PathBuf>,
     engine_config_path: Option<PathBuf>,
+    dry_run: bool,
 ) -> EngineResult<()> {
     info!("Running single workflow execution");
 
@@ -243,14 +248,7 @@ async fn run_single_workflow<E: Engine + 'static>(
 
     info!("WES request validation passed");
 
-    let runtime = EngineRuntime::new(
-        Arc::new(engine),
-        config,
-        None,
-        None,
-        true, // dry_run = true
-    )
-    .await?;
+    let runtime = EngineRuntime::new(Arc::new(engine), config, None, None, dry_run).await?;
 
     let run_id = Uuid::now_v7();
     let summary = runtime.run(run_id, "cli".to_string(), validated_request).await?;
