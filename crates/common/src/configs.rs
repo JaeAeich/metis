@@ -49,10 +49,12 @@ pub struct ValkeyConfig {
 }
 
 /// Database configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// Reads from `DATABASE_URL` env var (the standard sqlx convention).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DatabaseConfig {
     #[serde(default = "default_database_url")]
-    pub url: String,
+    pub database_url: String,
 }
 
 impl BaseConfig {
@@ -73,8 +75,11 @@ impl ValkeyConfig {
     }
 }
 impl DatabaseConfig {
-    pub fn from_env() -> Self {
-        envy::prefixed("DB_").from_env::<Self>().unwrap_or_default()
+    /// Reads `DATABASE_URL` from the environment (standard sqlx convention).
+    /// Returns `None` if the variable is not set, so callers can skip DB setup
+    /// entirely.
+    pub fn from_env() -> Option<Self> {
+        envy::from_env::<Self>().ok().filter(|c| !c.database_url.is_empty())
     }
 }
 
@@ -97,12 +102,6 @@ impl Default for NatsConfig {
             url: "nats://localhost:4222".into(),
             notification_subject: default_notification_subject(),
         }
-    }
-}
-
-impl Default for DatabaseConfig {
-    fn default() -> Self {
-        Self { url: "postgresql://localhost:5432/metis".into() }
     }
 }
 
@@ -358,7 +357,7 @@ fn default_notification_subject() -> String {
     default_service_name() + ".notification"
 }
 fn default_database_url() -> String {
-    "postgresql://localhost:5432/metis".into()
+    String::new()
 }
 fn default_true() -> bool {
     true

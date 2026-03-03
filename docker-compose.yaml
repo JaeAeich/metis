@@ -1,0 +1,40 @@
+x-healthcheck-http: &healthcheck-http
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 15s
+  start_interval: 2s
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: metis-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-metis}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+      <<: *healthcheck-http
+  metis-db-migrations:
+    build:
+      context: .
+      dockerfile: deployment/images/migration.Dockerfile
+    container_name: metis-db-migration
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - "-path"
+      - "/migrations"
+      - "-database"
+      - "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+      - "up"
+volumes:
+  postgres_data:

@@ -1,3 +1,7 @@
+[env]
+_.file = ".env"
+_.source = ".envrc"
+
 [shell_alias]
 mr = "mise run"
 
@@ -25,8 +29,21 @@ alias = [ "l" ]
 description = "Run clippy linter"
 run = "cargo clippy --all-targets --all-features -- -D warnings"
 
+[tasks.migrate-create]
+alias = "mc"
+description = "Create a new SQL migration"
+run = '''
+read -p "Migration name: " NAME
+NORMALIZED_NAME=$(echo "$NAME" \
+  | tr '[:upper:]' '[:lower:]' \
+  | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' \
+  | sed -E 's/[[:space:]]+/_/g')
+migrate create -ext sql -dir migrations -seq "$NORMALIZED_NAME"
+'''
+
 [tools]
 "cargo:cargo-criterion" = "1.1.0"
+gomigrate = "4.19.1"
 lefthook = "2.1.1"
 "npm:@commitlint/cli" = "20.4.1"
 "npm:@commitlint/config-conventional" = "20.4.1"

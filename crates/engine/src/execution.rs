@@ -1,9 +1,11 @@
 use std::process::ExitStatus;
+use std::sync::Arc;
 
 use tokio::io::AsyncBufReadExt;
 use tokio::process::{Child, Command};
 use tracing::{debug, info, warn};
 
+use crate::clients::db::Stream;
 use crate::error::{EngineError, EngineResult};
 use crate::models::CommandInfo;
 
@@ -42,13 +44,20 @@ impl ProcessExecutor {
         Ok(child)
     }
 
-    pub async fn monitor(mut child_process: Child) -> EngineResult<ExecutionOutput> {
+    pub async fn monitor(
+        mut child_process: Child,
+        line_callback: Arc<dyn Fn(Stream, u64, String) + Send + Sync + 'static>,
+    ) -> EngineResult<ExecutionOutput> {
+        let stdout_callback = Arc::clone(&line_callback);
         let stdout_task = child_process.stdout.take().map(|stdout| {
             tokio::spawn(async move {
                 let mut lines = tokio::io::BufReader::new(stdout).lines();
                 let mut output = String::new();
+                let mut seq: u64 = 0;
                 while let Ok(Some(line)) = lines.next_line().await {
                     debug!(stream = "stdout", line = %line);
+                    stdout_callback(Stream::Stdout, seq, line.clone());
+                    seq += 1;
                     output.push_str(&line);
                     output.push('\n');
                 }
@@ -56,12 +65,16 @@ impl ProcessExecutor {
             })
         });
 
+        let stderr_callback = Arc::clone(&line_callback);
         let stderr_task = child_process.stderr.take().map(|stderr| {
             tokio::spawn(async move {
                 let mut lines = tokio::io::BufReader::new(stderr).lines();
                 let mut output = String::new();
+                let mut seq: u64 = 0;
                 while let Ok(Some(line)) = lines.next_line().await {
                     debug!(stream = "stderr", line = %line);
+                    stderr_callback(Stream::Stderr, seq, line.clone());
+                    seq += 1;
                     output.push_str(&line);
                     output.push('\n');
                 }

@@ -4,13 +4,15 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use common::configs::{
-    EngineConfig, FullEngineConfig, NatsConfig, RunConfigTemplate, RunsConfig, WorkdirConfig,
+    DatabaseConfig, EngineConfig, FullEngineConfig, NatsConfig, RunConfigTemplate, RunsConfig,
+    WorkdirConfig,
 };
 use common::models::RunRequest;
 use common::validators::EngineRequestValidator;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
+use crate::clients::Db;
 use crate::engine::Engine;
 use crate::error::{EngineError, EngineResult};
 use crate::runtime::EngineRuntime;
@@ -248,7 +250,21 @@ async fn run_single_workflow<E: Engine + 'static>(
 
     info!("WES request validation passed");
 
-    let runtime = EngineRuntime::new(Arc::new(engine), config, None, None, dry_run).await?;
+    let db = match DatabaseConfig::from_env() {
+        Some(cfg) => match Db::new(&cfg).await {
+            Ok(db) => Some(Arc::new(db)),
+            Err(e) => {
+                warn!(error = %e, "Database unavailable — run persistence disabled");
+                None
+            },
+        },
+        None => {
+            warn!("DATABASE_URL not set — run persistence disabled");
+            None
+        },
+    };
+
+    let runtime = EngineRuntime::new(Arc::new(engine), config, None, None, db, dry_run);
 
     let run_id = Uuid::now_v7();
     let summary = runtime.run(run_id, "cli".to_string(), validated_request).await?;
@@ -279,7 +295,10 @@ async fn run_server<E: Engine + 'static>(
     );
 
     let valkey_config = common::configs::ValkeyConfig::from_env();
-    if let Err(e) = crate::server::bootstrap(engine, config, nats_config, valkey_config).await {
+    let db_config = common::configs::DatabaseConfig::from_env();
+    if let Err(e) =
+        crate::server::bootstrap(engine, config, nats_config, valkey_config, db_config).await
+    {
         error!("Server failed: {}", e);
         return Err(EngineError::Execution(format!("Server failed: {}", e)));
     }
