@@ -697,6 +697,7 @@ mod tests {
                     key_value_format: None,
                     format: None,
                     file_path: None,
+                    params_file_flag: None,
                 },
             },
             engine_params: EngineParamsConfig {

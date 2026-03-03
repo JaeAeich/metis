@@ -187,6 +187,8 @@ pub struct WorkflowParamsStyle {
     pub format: Option<WorkflowParamsFormat>,
     #[serde(default)]
     pub file_path: Option<String>,
+    #[serde(default)]
+    pub params_file_flag: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

@@ -191,7 +191,33 @@ impl EngineCommandBuilder {
                     .as_deref()
                     .unwrap_or("{workdir}/workflow-params.json");
                 let expanded_path = context.replace_vars(file_path);
-                Ok(format!("--params-file {}", expanded_path))
+
+                let content = match style
+                    .format
+                    .as_ref()
+                    .unwrap_or(&common::configs::WorkflowParamsFormat::Json)
+                {
+                    common::configs::WorkflowParamsFormat::Json => {
+                        serde_json::to_string_pretty(&params)?
+                    }
+                    common::configs::WorkflowParamsFormat::Yaml => serde_yaml::to_string(&params)?,
+                    common::configs::WorkflowParamsFormat::Properties => {
+                        let mut props = String::new();
+                        for (k, v) in params_map {
+                            let val = match v {
+                                serde_json::Value::String(s) => s.clone(),
+                                _ => v.to_string(),
+                            };
+                            props.push_str(&format!("{}={}\n", k, val));
+                        }
+                        props
+                    }
+                };
+
+                std::fs::write(&expanded_path, content)?;
+
+                let flag = style.params_file_flag.as_deref().unwrap_or("--params-file");
+                Ok(format!("{} {}", flag, expanded_path))
             }
         }
     }

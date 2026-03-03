@@ -45,6 +45,8 @@ engine:
       prefix: "--"
       separator: " "
       keyValueFormat: "{key}={value}"
+      # Optional: custom flag for params file (default: --params-file)
+      paramsFileFlag: "--param-file"
 
   # ============================================================================
   # ENGINE PARAMETER SPECIFICATIONS
