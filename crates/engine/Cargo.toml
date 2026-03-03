@@ -3,6 +3,10 @@ name = "engine"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "engine"
+path = "src/lib.rs"
+
 [[bin]]
 name = "engine"
 path = "src/main.rs"
@@ -28,3 +32,6 @@ redis = {workspace = true}
 sysinfo = "0.37.2"
 anyhow = "1.0.100"
 uuid = {workspace = true}
+
+[dev-dependencies]
+tempfile = "3"

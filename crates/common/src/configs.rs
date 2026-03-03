@@ -166,14 +166,6 @@ pub struct WorkdirConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SubDirConfig {
-    pub logs: Option<String>,
-    pub outputs: Option<String>,
-    pub word: Option<String>,
-    pub temp: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UnknownBehavior {
     Reject,

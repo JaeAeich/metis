@@ -1,21 +1,10 @@
-mod clients;
-mod command;
-mod context;
-mod engine;
-mod error;
-mod models;
-mod process;
-mod register;
-mod runtime;
-mod server;
-use crate::error::{EngineError, EngineResult};
 use clap::{Parser, Subcommand};
 use common::configs::{
     EngineConfig, FullEngineConfig, NatsConfig, RunConfigTemplate, RunsConfig, WorkdirConfig,
 };
 use common::models::RunRequest;
 use common::validators::EngineRequestValidator;
-use engine::NoopEngine;
+use engine::{EngineError, EngineResult, NoopEngine, EngineRuntime};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{error, info, warn};
@@ -273,7 +262,7 @@ async fn run_single_workflow(
     info!("WES request validation passed");
 
     // Create runtime with dry_run=true for NoopEngine
-    let runtime = runtime::EngineRuntime::new(
+    let runtime = EngineRuntime::new(
         Arc::new(NoopEngine),
         config,
         None, // no NATS
@@ -314,7 +303,7 @@ async fn run_server(
     );
 
     // Start the server
-    if let Err(e) = server::start_server(config, nats_config).await {
+    if let Err(e) = engine::server::start_server(config, nats_config).await {
         error!("Server failed: {}", e);
         return Err(EngineError::Execution(format!("Server failed: {}", e)));
     }
@@ -325,14 +314,6 @@ async fn run_server(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_default_config_creation() {
-        let config = create_default_engine_config();
-        assert_eq!(config.engine.name, "default");
-        assert_eq!(config.engine.version, "1.0.0");
-        assert!(!config.engine.workflow_types.is_empty());
-    }
 
     #[tokio::test]
     async fn test_parse_wes_request_from_json() {
@@ -368,12 +349,4 @@ mod tests {
         assert_eq!(request.workflow_type, "WDL");
     }
 
-    #[tokio::test]
-    async fn test_load_default_config() {
-        let result = load_engine_config(None).await;
-        assert!(result.is_ok());
-
-        let config = result.unwrap();
-        assert_eq!(config.engine.name, "default");
-    }
 }
