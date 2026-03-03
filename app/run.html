@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metis - Run Detail</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <a href="/" class="back-link">← Back to Runs</a>
+        <h1 class="logo">Run Detail</h1>
+        <p class="subtitle" id="run-id-display"></p>
+      </header>
+
+      <div id="run-header" class="run-header"></div>
+
+      <div class="tabs">
+        <button type="button" class="tab-btn active" onclick="showTab('overview')">Overview</button>
+        <button type="button" class="tab-btn" onclick="showTab('tasks')">Tasks</button>
+        <button type="button" class="tab-btn" onclick="showTab('logs')">Logs</button>
+      </div>
+
+      <div id="tab-overview" class="tab-content active">
+        <div id="overview-content"></div>
+      </div>
+
+      <div id="tab-tasks" class="tab-content">
+        <table class="tasks-table">
+          <thead>
+            <tr>
+              <th>Task ID</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Started</th>
+              <th>Ended</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-logs" class="tab-content">
+        <div class="logs-controls">
+          <select id="log-stream-filter">
+            <option value="">All Streams</option>
+            <option value="stdout">stdout</option>
+            <option value="stderr">stderr</option>
+          </select>
+          <button type="button" id="logs-pause-btn" onclick="toggleLogs()">Pause</button>
+          <button type="button" onclick="clearLogs()">Clear</button>
+        </div>
+        <div id="logs-container" class="logs-container"></div>
+      </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const runId = params.get("run_id");
+      if (runId) {
+        loadRun(runId);
+      }
+    });
+    </script>
+  </body>
+</html>
