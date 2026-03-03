@@ -2,6 +2,7 @@ use crate::clients::{Nats, Valkey};
 use crate::command::EngineCommandBuilder;
 use crate::engine::Engine;
 use crate::error::{EngineError, EngineResult};
+use crate::execution::ProcessExecutor;
 use crate::models::{BuildContext, CommandInfo};
 use chrono::Utc;
 use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
@@ -13,10 +14,8 @@ use std::process::ExitStatus;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
-use tokio::io::AsyncBufReadExt;
-use tokio::process::{Child, Command};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 pub struct ExecutionContext {
@@ -356,10 +355,10 @@ impl EngineRuntime {
 
         // Step 3: Execute workflow process
         span.record("state", "executing");
-        let child_process = self.execute_command(&command_info, &ctx).await?;
+        let child_process = ProcessExecutor::execute(&command_info).await?;
         let pid = child_process
             .id()
-            .ok_or_else(|| EngineError::Generic("Failed to get process ID".to_string()))?;
+            .ok_or_else(|| EngineError::Execution("Failed to get process ID".to_string()))?;
 
         // Store PID for cancellation support
         self.store_pid(&ctx.run_id.to_string(), pid).await?;
@@ -367,7 +366,8 @@ impl EngineRuntime {
 
         // Step 4: Monitor execution (this blocks until completion or cancellation)
         span.record("state", "running");
-        let exit_status = self.monitor_execution(child_process, &ctx).await?;
+        let execution_output = ProcessExecutor::monitor(child_process).await?;
+        let exit_status = execution_output.exit_status;
 
         if self.is_run_cancelled(&ctx.run_id).await {
             ctx.cancelled.store(true, Ordering::Relaxed);
@@ -528,7 +528,7 @@ impl EngineRuntime {
         info!(pid = pid, "Found process to cancel");
 
         // Send cancellation signal
-        self.cancel_process(pid).await?;
+        ProcessExecutor::cancel(pid).await?;
         self.remove_pid(run_id).await?;
 
         info!("Workflow cancellation completed");
@@ -591,81 +591,6 @@ impl EngineRuntime {
     }
 
     /// Execute the workflow command - FINAL, cannot be overridden
-    async fn execute_command(
-        &self,
-        command_info: &CommandInfo,
-        _ctx: &ExecutionContext,
-    ) -> Result<Child, EngineError> {
-        let mut cmd = if command_info.env_vars.is_empty() {
-            Command::new("sh")
-        } else {
-            let mut c = Command::new("sh");
-            for (key, value) in &command_info.env_vars {
-                c.env(key, value);
-            }
-            c
-        };
-
-        cmd.arg("-c")
-            .arg(&command_info.command)
-            .current_dir(&command_info.workdir)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .stdin(std::process::Stdio::null())
-            .kill_on_drop(true);
-
-        let child = cmd.spawn().map_err(|e| {
-            EngineError::Generic(format!("Failed to spawn workflow process: {}", e))
-        })?;
-
-        Ok(child)
-    }
-
-    /// Cancel a process by PID - FINAL, cannot be overridden
-    async fn cancel_process(&self, pid: u32) -> Result<(), EngineError> {
-        #[cfg(unix)]
-        {
-            use nix::errno::Errno;
-            use nix::sys::signal::{self, Signal};
-            use nix::unistd::Pid;
-
-            let pid = Pid::from_raw(pid as i32);
-
-            // Try graceful termination first
-            signal::kill(pid, Signal::SIGTERM).map_err(|e| {
-                EngineError::Generic(format!("Failed to send SIGTERM to process {}: {}", pid, e))
-            })?;
-
-            // Give it time to terminate gracefully
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-            // Force kill only if still running
-            match signal::kill(pid, None) {
-                Ok(_) => {
-                    signal::kill(pid, Signal::SIGKILL).map_err(|e| {
-                        EngineError::Generic(format!(
-                            "Failed to send SIGKILL to process {}: {}",
-                            pid, e
-                        ))
-                    })?;
-                }
-                Err(Errno::ESRCH) => {
-                    info!(pid = %pid, "Process has already exited");
-                }
-                Err(e) => {
-                    warn!(pid = %pid, error = %e, "Failed to check process status before SIGKILL");
-                }
-            }
-        }
-
-        #[cfg(not(unix))]
-        {
-            return Err("Process cancellation not implemented for this platform".into());
-        }
-
-        Ok(())
-    }
-
     /// Parse execution results and delegate to engine-specific methods - FINAL, cannot be overridden
     async fn parse_execution_results(
         &self,
@@ -811,51 +736,6 @@ impl EngineRuntime {
         }
 
         Ok(())
-    }
-
-    async fn monitor_execution(
-        &self,
-        mut child_process: Child,
-        _ctx: &ExecutionContext,
-    ) -> Result<ExitStatus, EngineError> {
-        let stdout_task = child_process.stdout.take().map(|stdout| {
-            tokio::spawn(async move {
-                let mut lines = tokio::io::BufReader::new(stdout).lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    debug!(stream = "stdout", line = %line);
-                }
-            })
-        });
-
-        let stderr_task = child_process.stderr.take().map(|stderr| {
-            tokio::spawn(async move {
-                let mut lines = tokio::io::BufReader::new(stderr).lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    debug!(stream = "stderr", line = %line);
-                }
-            })
-        });
-
-        let status = child_process.wait().await.map_err(|e| {
-            EngineError::Generic(format!(
-                "Failed while waiting for workflow process to complete: {}",
-                e
-            ))
-        })?;
-
-        if let Some(task) = stdout_task
-            && let Err(e) = task.await
-        {
-            warn!(error = %e, "Failed to join stdout reader task");
-        }
-
-        if let Some(task) = stderr_task
-            && let Err(e) = task.await
-        {
-            warn!(error = %e, "Failed to join stderr reader task");
-        }
-
-        Ok(status)
     }
 
     async fn parse_run_summary(
