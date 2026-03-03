@@ -41,7 +41,7 @@ pub use workdir::{WorkdirManager, WorkdirPaths};
 ///     engine::bootstrap::<MyEngine>().await
 /// }
 /// ```
-pub async fn bootstrap<E: Engine + Default + 'static>() -> EngineResult<()> {
+pub async fn bootstrap<E: Engine + 'static>() -> EngineResult<()> {
     let engine = E::new();
     run_cli(engine).await
 }

@@ -6,12 +6,6 @@ use engine::{Engine, EngineError};
 
 struct GenericEngine;
 
-impl Default for GenericEngine {
-    fn default() -> Self {
-        Self
-    }
-}
-
 #[async_trait]
 impl Engine for GenericEngine {
     fn new() -> Self {
