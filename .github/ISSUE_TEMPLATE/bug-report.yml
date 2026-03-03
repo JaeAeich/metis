@@ -1,4 +1,3 @@
----
 name: 🪲 Bug Report
 description: Report a bug
 title: "[Bug 🪲]: "
@@ -11,7 +10,6 @@ body:
       description: A clear and concise description of what the bug is.
     validations:
       required: true
-
   - type: textarea
     id: reproduction
     attributes:
@@ -25,19 +23,16 @@ body:
       placeholder: "Tell us what you see!"
     validations:
       required: true
-
   - type: textarea
     id: "expected-behavior"
     attributes:
       label: "Expected Behavior"
       description: >
-        "A clear and concise description of what you expected to happen."
+        "A clear and concise description of what you expected to happen." #magic___^_^___line
     validations:
       required: false
-
   - type: textarea
     id: "context"
     attributes:
       label: "Additional Context"
       description: "Add any other context about the problem here."
-...

@@ -1,6 +1,12 @@
 [toolchain]
 channel = "stable"
-components = ["rustfmt", "clippy"]
+components = [
+  "clippy",
+  "llvm-tools-preview",
+  "rust-analyzer",
+  "rust-src",
+  "rustfmt",
+]
 
 [toolchain.format]
 channel = "nightly"

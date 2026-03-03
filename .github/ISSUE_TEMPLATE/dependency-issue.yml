@@ -1,4 +1,3 @@
----
 name: 📦 Dependency Issue
 description: Report dependency conflicts or version issues
 title: "[Deps 📦]: "
@@ -19,4 +18,3 @@ body:
       render: go
     validations:
       required: true
-...

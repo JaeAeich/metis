@@ -1,4 +1,3 @@
----
 name: ⚡ Performance Issue
 description: Report performance problems
 title: "[Perf ⚡]: "
@@ -18,4 +17,3 @@ body:
       description: Include relevant metrics/benchmarks
     validations:
       required: true
-...

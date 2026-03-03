@@ -1,14 +1,11 @@
 name: PR Validation
-
 on:
   pull_request:
     types: [opened, edited, ready_for_review, synchronize, reopened]
     branches: ["**"]
-
 permissions:
   contents: read
   pull-requests: read
-
 jobs:
   merge-conflicts:
     name: Check merge conflicts
@@ -19,26 +16,18 @@ jobs:
       - name: Detect conflict markers
         run: |
           conflicts=$(git grep -l "<<<<<<<" ":(exclude).github/" 2>/dev/null || true)
-          if [ -n "$conflicts" ]; then
-            echo "Unresolved merge conflicts found:"
-            echo "$conflicts"
-            exit 1
-          fi
-
+          [ -z "$conflicts" ] || { echo "Unresolved merge conflicts found:"; echo "$conflicts"; exit 1; }
   lint:
     name: Lint & format check
     runs-on: ubuntu-latest
     if: github.event.action != 'edited'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: jdx/mise-action@v2
         with:
-          python-version: "3.12"
-      - name: Install pre-commit
-        run: pip install pre-commit
-      - name: Run pre-commit
-        run: pre-commit run --all-files
-
+          install: true
+      - name: Run lefthook
+        run: mise x -- lefthook run pre-commit --all-files
   semantic-pr:
     name: Semantic PR title
     runs-on: ubuntu-latest
@@ -64,5 +53,5 @@ jobs:
             chore
             revert
           subjectPattern: ^(?![A-Z])(?=.{1,50}$).+$
-          subjectPatternError: |
+          subjectPatternError: |-
             Subject "{subject}" must not start with uppercase and be ≤50 chars.
