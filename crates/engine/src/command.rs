@@ -18,8 +18,6 @@ impl EngineCommandBuilder {
         &self.config
     }
 
-    /// Build command from validated request.
-    /// No validation happens here - request is already validated at API layer.
     pub fn build_command(
         &self,
         request: &ValidatedRunRequest,
@@ -27,25 +25,19 @@ impl EngineCommandBuilder {
     ) -> Result<CommandInfo, Box<dyn std::error::Error + Send + Sync>> {
         let validated_params = request.workflow_engine_parameters.as_ref();
 
-        // Build components
-        let engine_params_str = self.build_engine_params_string(validated_params, context)?;
-        let workflow_params_str =
-            self.build_workflow_params_string(request.workflow_params.as_ref(), context)?;
-
-        // Collect env vars
         let env_vars = self.collect_env_vars(validated_params, context);
 
-        // Build command
         let mut template_vars = context.template_vars();
-        template_vars.insert("engine_params".to_string(), engine_params_str.clone());
-        template_vars.insert("workflow_params".to_string(), workflow_params_str.clone());
+        template_vars.insert("engine_params".to_string(), context.engine_params.clone());
+        template_vars.insert(
+            "workflow_params".to_string(),
+            context.workflow_params.clone(),
+        );
 
         let command = self.replace_template_vars(&self.config().command_template, &template_vars);
 
-        // Build redacted command
         let redacted_command = self.redact_sensitive(&command, validated_params);
 
-        // Prepend environment variables to command
         let full_command = self.build_full_command(&command, &env_vars);
         let full_redacted_command = self.build_full_command(&redacted_command, &env_vars);
 
@@ -57,7 +49,23 @@ impl EngineCommandBuilder {
         })
     }
 
-    fn build_engine_params_string(
+    pub fn build_engine_params_string(
+        &self,
+        params: Option<&Vec<ValidatedParam>>,
+        context: &BuildContext,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.build_engine_params_string_internal(params, context)
+    }
+
+    pub fn build_workflow_params_string(
+        &self,
+        params: Option<&serde_json::Value>,
+        context: &BuildContext,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.build_workflow_params_string_internal(params, context)
+    }
+
+    fn build_engine_params_string_internal(
         &self,
         params: Option<&Vec<ValidatedParam>>,
         context: &BuildContext,
@@ -138,10 +146,11 @@ impl EngineCommandBuilder {
             .collect();
 
         let separator = spec.list_separator.as_deref().unwrap_or(",");
+
         Ok(format!("{} {}", spec.cli_flag, items.join(separator)))
     }
 
-    fn build_workflow_params_string(
+    fn build_workflow_params_string_internal(
         &self,
         params: Option<&serde_json::Value>,
         context: &BuildContext,
@@ -196,10 +205,10 @@ impl EngineCommandBuilder {
 
         if let Some(params) = params {
             for param in params {
-                if let (Some(env_var), Some(value)) = (&param.spec.env_var, &param.value) {
-                    if let Some(val_str) = value.as_str() {
-                        env_vars.insert(env_var.clone(), val_str.to_string());
-                    }
+                if let (Some(env_var), Some(value)) = (&param.spec.env_var, &param.value)
+                    && let Some(val_str) = value.as_str()
+                {
+                    env_vars.insert(env_var.clone(), val_str.to_string());
                 }
             }
         }
@@ -207,29 +216,12 @@ impl EngineCommandBuilder {
         env_vars
     }
 
-    fn redact_sensitive(&self, command: &str, params: Option<&Vec<ValidatedParam>>) -> String {
-        let mut redacted = command.to_string();
-
-        if let Some(params) = params {
-            for param in params {
-                if !param.spec.sensitive {
-                    continue;
-                }
-
-                if let Some(ref value) = param.value {
-                    // Redact the actual value in the command
-                    let value_str = match value {
-                        serde_json::Value::String(s) => s.clone(),
-                        _ => value.to_string().trim_matches('"').to_string(),
-                    };
-
-                    // Replace value with ***
-                    redacted = redacted.replace(&value_str, "***");
-                }
-            }
+    fn replace_template_vars(&self, template: &str, vars: &HashMap<String, String>) -> String {
+        let mut result = template.to_string();
+        for (key, value) in vars {
+            result = result.replace(&format!("{{{}}}", key), value);
         }
-
-        redacted
+        result
     }
 
     fn build_full_command(&self, command: &str, env_vars: &HashMap<String, String>) -> String {
@@ -237,21 +229,29 @@ impl EngineCommandBuilder {
             return command.to_string();
         }
 
-        let env_str: Vec<String> = env_vars
+        let env_prefix: String = env_vars
             .iter()
             .map(|(k, v)| format!("{}={}", k, v))
-            .collect();
+            .collect::<Vec<_>>()
+            .join(" ");
 
-        format!("{} {}", env_str.join(" "), command)
+        format!("{} {}", env_prefix, command)
     }
 
-    fn replace_template_vars(&self, template: &str, vars: &HashMap<String, String>) -> String {
-        let mut result = template.to_string();
+    fn redact_sensitive(&self, command: &str, params: Option<&Vec<ValidatedParam>>) -> String {
+        let Some(params) = params else {
+            return command.to_string();
+        };
 
-        for (key, value) in vars {
-            result = result.replace(&format!("{{{}}}", key), value);
+        let mut redacted = command.to_string();
+        for param in params {
+            if param.spec.sensitive
+                && let Some(ref value) = param.value
+                && let Some(val_str) = value.as_str()
+            {
+                redacted = redacted.replace(val_str, "[REDACTED]");
+            }
         }
-
-        result
+        redacted
     }
 }

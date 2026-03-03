@@ -10,14 +10,13 @@ impl BuildContext {
         vars.insert("workflow_url".to_string(), self.workflow_url.clone());
         vars.insert("workdir".to_string(), self.workdir.clone());
         vars.insert("timestamp".to_string(), self.timestamp.to_rfc3339());
-        vars.insert(
-            "date".to_string(),
-            self.timestamp.format("%Y-%m-%d").to_string(),
-        );
-        vars.insert(
-            "time".to_string(),
-            self.timestamp.format("%H-%M-%S").to_string(),
-        );
+        vars.insert("params_file".to_string(), self.params_file.clone());
+        vars.insert("workflow_params".to_string(), self.workflow_params.clone());
+        vars.insert("engine_params".to_string(), self.engine_params.clone());
+        vars.insert("date".to_string(), self.date.clone());
+        vars.insert("time".to_string(), self.time.clone());
+        vars.insert("logs_dir".to_string(), self.log_dir.clone());
+        vars.insert("outputs_dir".to_string(), self.output_dir.clone());
 
         for (name, path) in &self.subdirs {
             vars.insert(format!("{}_dir", name), path.clone());

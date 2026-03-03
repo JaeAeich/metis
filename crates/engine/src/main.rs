@@ -8,11 +8,10 @@ mod process;
 mod register;
 mod runtime;
 mod server;
+use crate::error::{EngineError, EngineResult};
 use clap::{Parser, Subcommand};
 use common::configs::{
-    Backend, EngineConfig, EngineParamsConfig, FullEngineConfig, NatsConfig, RunConfigTemplate,
-    RunsConfig, UnknownBehavior, WorkdirConfig, WorkflowParamsConfig, WorkflowParamsMethod,
-    WorkflowParamsStyle,
+    EngineConfig, FullEngineConfig, NatsConfig, RunConfigTemplate, RunsConfig, WorkdirConfig,
 };
 use common::models::RunRequest;
 use common::validators::EngineRequestValidator;
@@ -21,10 +20,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{error, info, warn};
 use uuid::Uuid;
-
-fn default_uuid_v7() -> Uuid {
-    Uuid::now_v7()
-}
 
 #[derive(Parser)]
 #[command(name = "metis-engine")]
@@ -80,7 +75,7 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> EngineResult<()> {
     let cli = Cli::parse();
 
     // Initialize logging
@@ -114,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Initialize logging based on configuration
-fn init_logging(log_level: &str, json_logging: bool) -> Result<(), Box<dyn std::error::Error>> {
+fn init_logging(log_level: &str, json_logging: bool) -> EngineResult<()> {
     let level = match log_level.to_lowercase().as_str() {
         "trace" => tracing::Level::TRACE,
         "debug" => tracing::Level::DEBUG,
@@ -144,9 +139,7 @@ fn init_logging(log_level: &str, json_logging: bool) -> Result<(), Box<dyn std::
 }
 
 /// Load engine configuration from file or use default
-async fn load_engine_config(
-    config_path: Option<PathBuf>,
-) -> Result<FullEngineConfig, Box<dyn std::error::Error>> {
+async fn load_engine_config(config_path: Option<PathBuf>) -> EngineResult<FullEngineConfig> {
     match config_path {
         Some(path) => {
             info!(config_path = %path.display(), "Loading engine configuration");
@@ -183,39 +176,9 @@ async fn load_engine_config(
                 }
             }
         }
-        None => {
-            info!("Using default engine configuration");
-            Ok(create_default_engine_config())
-        }
-    }
-}
-
-fn create_default_engine() -> EngineConfig {
-    EngineConfig {
-        name: "default".to_string(),
-        version: "1.0.0".to_string(),
-        workflow_types: vec!["CWL".to_string(), "WDL".to_string(), "NFL".to_string()],
-        workflow_type_versions: vec!["v1.0".to_string(), "1.0".to_string(), "DSL2".to_string()],
-        command_template: "echo 'Running workflow: {workflow_path}' && sleep 5".to_string(),
-        backend: Backend::Local,
-        id: default_uuid_v7(),
-
-        workflow_params: WorkflowParamsConfig {
-            style: WorkflowParamsStyle {
-                method: WorkflowParamsMethod::Inline,
-                prefix: Some("--".to_string()),
-                separator: Some(" ".to_string()),
-                key_value_format: Some("{key}={value}".to_string()),
-                format: None,
-                file_path: None,
-            },
-        },
-        engine_params: EngineParamsConfig {
-            unknown_params_behavior: UnknownBehavior::Strip,
-            validated_params: vec![],
-        },
-        denied_params: vec![],
-        ignored_params: None,
+        None => Err(EngineError::Config(
+            "No engine configuration file provided. Use --engine-config <path>".to_string(),
+        )),
     }
 }
 
@@ -242,33 +205,37 @@ fn wrap_engine_config(engine: EngineConfig) -> FullEngineConfig {
     }
 }
 
-fn create_default_engine_config() -> FullEngineConfig {
-    wrap_engine_config(create_default_engine())
-}
-
 /// Parse WES request from JSON string or file
 async fn parse_wes_request(
     request_json: Option<String>,
     file_path: Option<PathBuf>,
-) -> Result<RunRequest, Box<dyn std::error::Error>> {
+) -> EngineResult<RunRequest> {
     let json_content = match (request_json, file_path) {
         (Some(json), None) => json,
         (None, Some(path)) => {
             info!(file_path = %path.display(), "Reading WES request from file");
-            tokio::fs::read_to_string(&path)
-                .await
-                .map_err(|e| format!("Failed to read request file {}: {}", path.display(), e))?
+            tokio::fs::read_to_string(&path).await.map_err(|e| {
+                EngineError::Config(format!(
+                    "Failed to read request file {}: {}",
+                    path.display(),
+                    e
+                ))
+            })?
         }
         (Some(_), Some(_)) => {
-            return Err("Cannot specify both request JSON and file path".into());
+            return Err(EngineError::Config(
+                "Cannot specify both request JSON and file path".to_string(),
+            ));
         }
         (None, None) => {
-            return Err("Must specify either request JSON or file path".into());
+            return Err(EngineError::Config(
+                "Must specify either request JSON or file path".to_string(),
+            ));
         }
     };
 
     let request: RunRequest = serde_json::from_str(&json_content)
-        .map_err(|e| format!("Failed to parse WES request JSON: {}", e))?;
+        .map_err(|e| EngineError::Validation(format!("Failed to parse WES request JSON: {}", e)))?;
 
     info!(
         workflow_type = %request.workflow_type,
@@ -284,7 +251,7 @@ async fn run_single_workflow(
     request_json: Option<String>,
     file_path: Option<PathBuf>,
     engine_config_path: Option<PathBuf>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> EngineResult<()> {
     info!("Running single workflow execution");
 
     // Load configuration and request
@@ -301,7 +268,7 @@ async fn run_single_workflow(
     let validator = EngineRequestValidator::new(config.engine.clone());
     let validated_request = validator
         .validate(&request)
-        .map_err(|e| format!("Request validation failed: {}", e))?;
+        .map_err(|e| EngineError::Validation(format!("Request validation failed: {}", e)))?;
 
     info!("WES request validation passed");
 
@@ -309,9 +276,9 @@ async fn run_single_workflow(
     let runtime = runtime::EngineRuntime::new(
         Arc::new(NoopEngine),
         config,
-        None,  // no NATS
-        None,  // no Valkey
-        true,  // dry_run = true
+        None, // no NATS
+        None, // no Valkey
+        true, // dry_run = true
     )
     .await?;
 
@@ -332,7 +299,7 @@ async fn run_single_workflow(
 async fn run_server(
     engine_config_path: Option<PathBuf>,
     nats_config: NatsConfig,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> EngineResult<()> {
     info!("Starting engine server");
 
     // Load engine configuration
@@ -349,28 +316,10 @@ async fn run_server(
     // Start the server
     if let Err(e) = server::start_server(config, nats_config).await {
         error!("Server failed: {}", e);
-        return Err(e);
+        return Err(EngineError::Execution(format!("Server failed: {}", e)));
     }
 
     Ok(())
-}
-
-/// Example WES request for testing
-#[allow(dead_code)]
-fn example_wes_request() -> serde_json::Value {
-    serde_json::json!({
-        "workflow_params": {
-            "input_file": "/path/to/input.txt",
-            "output_dir": "/path/to/output"
-        },
-        "workflow_type": "CWL",
-        "workflow_type_version": "v1.0",
-        "workflow_url": "https://github.com/example/workflow.cwl",
-        "workflow_engine_parameters": {
-            "max_cpu": "4",
-            "max_memory": "8GB"
-        }
-    })
 }
 
 #[cfg(test)]

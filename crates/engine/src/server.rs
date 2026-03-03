@@ -1,4 +1,5 @@
 use crate::engine::{Engine, NoopEngine};
+use crate::error::EngineResult;
 use crate::runtime::EngineRuntime;
 use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
 use std::sync::Arc;
@@ -8,7 +9,7 @@ pub async fn bootstrap<E>(
     config: FullEngineConfig,
     nats_config: NatsConfig,
     valkey_config: ValkeyConfig,
-) -> anyhow::Result<()>
+) -> EngineResult<()>
 where
     E: Engine + 'static,
 {
@@ -18,7 +19,7 @@ where
             config,
             Some(nats_config),
             Some(valkey_config),
-            false,  // dry_run = false for server mode
+            false, // dry_run = false for server mode
         )
         .await?,
     );
@@ -26,10 +27,7 @@ where
     Ok(())
 }
 
-pub async fn start_server(
-    config: FullEngineConfig,
-    nats_config: NatsConfig,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_server(config: FullEngineConfig, nats_config: NatsConfig) -> EngineResult<()> {
     let valkey_config = ValkeyConfig::from_env();
     bootstrap(NoopEngine, config, nats_config, valkey_config).await?;
     Ok(())

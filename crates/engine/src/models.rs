@@ -15,7 +15,7 @@ pub struct BuildContext {
     pub output_dir: String,
     pub subdirs: std::collections::HashMap<String, String>,
     pub timestamp: DateTime<Utc>,
-    pub data: String,
+    pub date: String,
     pub time: String,
 }
 

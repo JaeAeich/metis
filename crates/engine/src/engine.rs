@@ -1,4 +1,4 @@
-use anyhow::Error;
+use crate::error::EngineError;
 use async_trait::async_trait;
 use common::models::TaskLog;
 use common::models::WorkflowFileInfo;
@@ -19,13 +19,14 @@ pub trait Engine: Send + Sync {
     ///     a cloud storage service ie s3://bucket/path/to/result.
     ///     Files should be categorized (eg metadata, logs, results) based on engine specific
     ///     terminologies.
+    #[allow(dead_code)]
     async fn get_workflow_results(
         &self,
     ) -> Result<
         Option<
             std::collections::HashMap<String, std::collections::HashMap<String, WorkflowFileInfo>>,
         >,
-        Error,
+        EngineError,
     >;
 
     /// Get task execution logs
@@ -36,7 +37,7 @@ pub trait Engine: Send + Sync {
     ///     For a cloud backend, the logs might be stored in a cloud storage service.
     ///     Logs should be categorized (eg metadata, logs, results) based on engine specific
     ///     terminologies.
-    async fn get_task_logs(&self) -> Result<Option<Vec<TaskLog>>, Error>;
+    async fn get_task_logs(&self) -> Result<Option<Vec<TaskLog>>, EngineError>;
 }
 
 /// Default no-op engine implementation used by the generic engine binary.
@@ -51,12 +52,12 @@ impl Engine for NoopEngine {
         Option<
             std::collections::HashMap<String, std::collections::HashMap<String, WorkflowFileInfo>>,
         >,
-        Error,
+        EngineError,
     > {
         Ok(None)
     }
 
-    async fn get_task_logs(&self) -> Result<Option<Vec<TaskLog>>, Error> {
+    async fn get_task_logs(&self) -> Result<Option<Vec<TaskLog>>, EngineError> {
         Ok(None)
     }
 }

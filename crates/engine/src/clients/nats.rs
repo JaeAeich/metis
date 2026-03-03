@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::{EngineError, EngineResult};
 use async_nats::{Client, Subscriber};
 use common::configs::{EngineConfig, NatsConfig};
 use std::sync::Arc;
@@ -10,8 +10,10 @@ pub struct Nats {
 }
 
 impl Nats {
-    pub async fn new(nats_config: &NatsConfig, engine_config: EngineConfig) -> Result<Self> {
-        let client = async_nats::connect(&nats_config.url).await?;
+    pub async fn new(nats_config: &NatsConfig, engine_config: EngineConfig) -> EngineResult<Self> {
+        let client = async_nats::connect(&nats_config.url)
+            .await
+            .map_err(|e| EngineError::Network(e.to_string()))?;
         Ok(Self {
             client: Arc::new(client),
             engine_config,
@@ -41,25 +43,34 @@ impl Nats {
         format!("metis.cancel.{}", self.engine_config.id)
     }
 
-    pub async fn subscribe_runs(&self) -> Result<Vec<Subscriber>> {
+    pub async fn subscribe_runs(&self) -> EngineResult<Vec<Subscriber>> {
         let mut subs = Vec::new();
         for topic in self.run_topics() {
-            let sub = self.client.subscribe(topic).await?;
+            let sub = self
+                .client
+                .subscribe(topic)
+                .await
+                .map_err(|e| EngineError::Network(e.to_string()))?;
             subs.push(sub);
         }
         Ok(subs)
     }
 
-    pub async fn subscribe_cancel(&self) -> Result<Subscriber> {
+    pub async fn subscribe_cancel(&self) -> EngineResult<Subscriber> {
         let topic = self.cancel_topic();
-        let sub = self.client.subscribe(topic).await?;
+        let sub = self
+            .client
+            .subscribe(topic)
+            .await
+            .map_err(|e| EngineError::Network(e.to_string()))?;
         Ok(sub)
     }
 
-    pub async fn publish_notification(&self, payload: impl Into<Vec<u8>>) -> Result<()> {
+    pub async fn publish_notification(&self, payload: impl Into<Vec<u8>>) -> EngineResult<()> {
         self.client
             .publish(self.notification_subject.clone(), payload.into().into())
-            .await?;
+            .await
+            .map_err(|e| EngineError::Network(e.to_string()))?;
         Ok(())
     }
 }

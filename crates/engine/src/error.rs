@@ -76,6 +76,18 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for EngineError {
     }
 }
 
+impl From<anyhow::Error> for EngineError {
+    fn from(err: anyhow::Error) -> Self {
+        EngineError::Generic(err.to_string())
+    }
+}
+
+impl From<redis::RedisError> for EngineError {
+    fn from(err: redis::RedisError) -> Self {
+        EngineError::Io(std::io::Error::other(err.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

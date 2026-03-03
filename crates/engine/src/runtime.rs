@@ -1,6 +1,7 @@
 use crate::clients::{Nats, Valkey};
 use crate::command::EngineCommandBuilder;
 use crate::engine::Engine;
+use crate::error::{EngineError, EngineResult};
 use crate::models::{BuildContext, CommandInfo};
 use chrono::Utc;
 use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
@@ -57,7 +58,7 @@ impl EngineRuntime {
         nats_config: Option<NatsConfig>,
         valkey_config: Option<ValkeyConfig>,
         dry_run: bool,
-    ) -> anyhow::Result<Self> {
+    ) -> EngineResult<Self> {
         let command_builder = Arc::new(EngineCommandBuilder::new(Arc::new(config.engine.clone())));
 
         let valkey = if let Some(valkey_config) = valkey_config {
@@ -88,10 +89,10 @@ impl EngineRuntime {
         })
     }
 
-    pub async fn start(self: Arc<Self>) -> anyhow::Result<()> {
+    pub async fn start(self: Arc<Self>) -> EngineResult<()> {
         let Some(nats) = &self.nats else {
-            return Err(anyhow::anyhow!(
-                "NATS is not configured for this runtime instance"
+            return Err(EngineError::Generic(
+                "NATS is not configured for this runtime instance".to_string(),
             ));
         };
 
@@ -167,7 +168,7 @@ impl EngineRuntime {
         Ok(())
     }
 
-    async fn handle_run_message(&self, payload: &[u8]) -> anyhow::Result<()> {
+    async fn handle_run_message(&self, payload: &[u8]) -> EngineResult<()> {
         let run_message = Self::parse_run_message(payload)?;
         let run_id = Uuid::now_v7();
 
@@ -214,7 +215,7 @@ impl EngineRuntime {
         Ok(())
     }
 
-    async fn handle_cancel_message(&self, payload: &[u8]) -> anyhow::Result<()> {
+    async fn handle_cancel_message(&self, payload: &[u8]) -> EngineResult<()> {
         let run_id = Self::parse_cancel_run_id(payload)?;
         self.cancel(&run_id).await?;
 
@@ -231,16 +232,16 @@ impl EngineRuntime {
         Ok(())
     }
 
-    fn parse_run_message(payload: &[u8]) -> anyhow::Result<RunRequestMessage> {
+    fn parse_run_message(payload: &[u8]) -> EngineResult<RunRequestMessage> {
         if let Ok(message) = serde_json::from_slice::<RunRequestMessage>(payload) {
             return Ok(message);
         }
 
         let request: ValidatedRunRequest = serde_json::from_slice(payload).map_err(|e| {
-            anyhow::anyhow!(
+            EngineError::Generic(format!(
                 "Unable to parse run message as RunRequestMessage or ValidatedRunRequest: {}",
                 e
-            )
+            ))
         })?;
 
         Ok(RunRequestMessage {
@@ -249,7 +250,7 @@ impl EngineRuntime {
         })
     }
 
-    fn parse_cancel_run_id(payload: &[u8]) -> anyhow::Result<String> {
+    fn parse_cancel_run_id(payload: &[u8]) -> EngineResult<String> {
         if let Ok(message) = serde_json::from_slice::<CancelRunMessage>(payload) {
             return Ok(message.run_id);
         }
@@ -259,14 +260,14 @@ impl EngineRuntime {
         }
 
         let raw_text = std::str::from_utf8(payload).map_err(|e| {
-            anyhow::anyhow!(
+            EngineError::Generic(format!(
                 "Unable to parse cancel message payload as UTF-8 string: {}",
                 e
-            )
+            ))
         })?;
 
         if raw_text.is_empty() {
-            return Err(anyhow::anyhow!("Cancel payload is empty"));
+            return Err(EngineError::Generic("Cancel payload is empty".to_string()));
         }
 
         Ok(raw_text.to_string())
@@ -278,7 +279,7 @@ impl EngineRuntime {
         run_id: Uuid,
         user_id: String,
         req: ValidatedRunRequest,
-    ) -> Result<RunSummary, anyhow::Error> {
+    ) -> Result<RunSummary, EngineError> {
         let start_time = Instant::now();
         let started_at = Utc::now();
 
@@ -317,6 +318,21 @@ impl EngineRuntime {
         // Step 2: Build execution command
         span.record("state", "building");
         let build_context = self.create_build_context(&ctx).await?;
+
+        let engine_params = self
+            .command_builder
+            .build_engine_params_string(req.workflow_engine_parameters.as_ref(), &build_context)
+            .map_err(|e| EngineError::Generic(e.to_string()))?;
+
+        let workflow_params = self
+            .command_builder
+            .build_workflow_params_string(req.workflow_params.as_ref(), &build_context)
+            .map_err(|e| EngineError::Generic(e.to_string()))?;
+
+        let mut build_context = build_context;
+        build_context.engine_params = engine_params;
+        build_context.workflow_params = workflow_params;
+
         let command_info = self.build_command(&req, &build_context).await?;
 
         info!(
@@ -343,7 +359,7 @@ impl EngineRuntime {
         let child_process = self.execute_command(&command_info, &ctx).await?;
         let pid = child_process
             .id()
-            .ok_or_else(|| anyhow::anyhow!("Failed to get process ID"))?;
+            .ok_or_else(|| EngineError::Generic("Failed to get process ID".to_string()))?;
 
         // Store PID for cancellation support
         self.store_pid(&ctx.run_id.to_string(), pid).await?;
@@ -398,7 +414,10 @@ impl EngineRuntime {
         println!("Run ID:         {}", ctx.run_id);
         println!("User ID:        {}", ctx.user_id);
         println!("Workflow URL:   {}", ctx.workflow_url);
-        println!("Workflow Type:  {} {}", req.workflow_type, req.workflow_type_version);
+        println!(
+            "Workflow Type:  {} {}",
+            req.workflow_type, req.workflow_type_version
+        );
         println!();
         println!("Staging Area:");
         println!("  workdir:   {}", ctx.workdir);
@@ -438,7 +457,9 @@ impl EngineRuntime {
                     .workflow_engine_parameters
                     .as_ref()
                     .map(|params| {
-                        params.iter().any(|p| p.spec.env_var.as_deref() == Some(k) && p.spec.sensitive)
+                        params
+                            .iter()
+                            .any(|p| p.spec.env_var.as_deref() == Some(k) && p.spec.sensitive)
                     })
                     .unwrap_or(false);
 
@@ -488,7 +509,7 @@ impl EngineRuntime {
     }
 
     /// Cancel a running workflow - FINAL, cannot be overridden
-    pub async fn cancel(&self, run_id: &str) -> Result<(), anyhow::Error> {
+    pub async fn cancel(&self, run_id: &str) -> Result<(), EngineError> {
         let _span = tracing::info_span!("workflow_cancel", run_id = %run_id);
         info!(run_id = %run_id, "Cancelling workflow");
 
@@ -519,15 +540,15 @@ impl EngineRuntime {
     }
 
     /// Setup the execution environment - FINAL, cannot be overridden
-    async fn setup_execution_environment(
-        &self,
-        ctx: &ExecutionContext,
-    ) -> Result<(), anyhow::Error> {
+    async fn setup_execution_environment(&self, ctx: &ExecutionContext) -> Result<(), EngineError> {
         info!(workdir = %ctx.workdir, "Setting up execution environment");
 
         // Create working directory
         tokio::fs::create_dir_all(&ctx.workdir).await.map_err(|e| {
-            anyhow::anyhow!("Failed to create working directory {}: {}", ctx.workdir, e)
+            EngineError::Generic(format!(
+                "Failed to create working directory {}: {}",
+                ctx.workdir, e
+            ))
         })?;
 
         // TODO: Download workflow files to local path
@@ -539,7 +560,7 @@ impl EngineRuntime {
     async fn create_build_context(
         &self,
         ctx: &ExecutionContext,
-    ) -> Result<BuildContext, anyhow::Error> {
+    ) -> Result<BuildContext, EngineError> {
         Ok(BuildContext {
             run_id: ctx.run_id.to_string(),
             user_id: ctx.user_id.clone(),
@@ -553,8 +574,8 @@ impl EngineRuntime {
             params_file: format!("{}/workflow-params.json", ctx.workdir),
             log_dir: ctx.subdirs.get("logs").cloned().unwrap_or_default(),
             output_dir: ctx.subdirs.get("outputs").cloned().unwrap_or_default(),
-            data: String::new(),
-            time: String::new(),
+            date: chrono::Utc::now().format("%Y-%m-%d").to_string(),
+            time: chrono::Utc::now().format("%H-%M-%S").to_string(),
         })
     }
 
@@ -563,10 +584,10 @@ impl EngineRuntime {
         &self,
         request: &ValidatedRunRequest,
         context: &BuildContext,
-    ) -> Result<CommandInfo, anyhow::Error> {
+    ) -> Result<CommandInfo, EngineError> {
         self.command_builder
             .build_command(request, context)
-            .map_err(|e| anyhow::anyhow!(e))
+            .map_err(|e| EngineError::Generic(e.to_string()))
     }
 
     /// Execute the workflow command - FINAL, cannot be overridden
@@ -574,7 +595,7 @@ impl EngineRuntime {
         &self,
         command_info: &CommandInfo,
         _ctx: &ExecutionContext,
-    ) -> Result<Child, anyhow::Error> {
+    ) -> Result<Child, EngineError> {
         let mut cmd = if command_info.env_vars.is_empty() {
             Command::new("sh")
         } else {
@@ -593,15 +614,15 @@ impl EngineRuntime {
             .stdin(std::process::Stdio::null())
             .kill_on_drop(true);
 
-        let child = cmd
-            .spawn()
-            .map_err(|e| anyhow::anyhow!("Failed to spawn workflow process: {}", e))?;
+        let child = cmd.spawn().map_err(|e| {
+            EngineError::Generic(format!("Failed to spawn workflow process: {}", e))
+        })?;
 
         Ok(child)
     }
 
     /// Cancel a process by PID - FINAL, cannot be overridden
-    async fn cancel_process(&self, pid: u32) -> Result<(), anyhow::Error> {
+    async fn cancel_process(&self, pid: u32) -> Result<(), EngineError> {
         #[cfg(unix)]
         {
             use nix::errno::Errno;
@@ -611,8 +632,9 @@ impl EngineRuntime {
             let pid = Pid::from_raw(pid as i32);
 
             // Try graceful termination first
-            signal::kill(pid, Signal::SIGTERM)
-                .map_err(|e| anyhow::anyhow!("Failed to send SIGTERM to process {}: {}", pid, e))?;
+            signal::kill(pid, Signal::SIGTERM).map_err(|e| {
+                EngineError::Generic(format!("Failed to send SIGTERM to process {}: {}", pid, e))
+            })?;
 
             // Give it time to terminate gracefully
             tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -621,7 +643,10 @@ impl EngineRuntime {
             match signal::kill(pid, None) {
                 Ok(_) => {
                     signal::kill(pid, Signal::SIGKILL).map_err(|e| {
-                        anyhow::anyhow!("Failed to send SIGKILL to process {}: {}", pid, e)
+                        EngineError::Generic(format!(
+                            "Failed to send SIGKILL to process {}: {}",
+                            pid, e
+                        ))
                     })?;
                 }
                 Err(Errno::ESRCH) => {
@@ -646,7 +671,7 @@ impl EngineRuntime {
         &self,
         ctx: &ExecutionContext,
         exit_status: &ExitStatus,
-    ) -> Result<(RunSummary, common::models::Log, TaskListResponse), anyhow::Error> {
+    ) -> Result<(RunSummary, common::models::Log, TaskListResponse), EngineError> {
         let state = if ctx.cancelled.load(Ordering::Relaxed) {
             State::Canceled
         } else if exit_status.success() {
@@ -670,7 +695,7 @@ impl EngineRuntime {
         _run_summary: &RunSummary,
         _run_log: &common::models::Log,
         _task_logs: &TaskListResponse,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), EngineError> {
         info!(run_id = %ctx.run_id, "Updating database with execution results");
 
         // TODO: Implement database updates
@@ -685,7 +710,7 @@ impl EngineRuntime {
     }
 
     /// Cleanup execution environment - FINAL, cannot be overridden
-    async fn cleanup_execution(&self, ctx: &ExecutionContext) -> Result<(), anyhow::Error> {
+    async fn cleanup_execution(&self, ctx: &ExecutionContext) -> Result<(), EngineError> {
         info!(run_id = %ctx.run_id, "Cleaning up execution environment");
 
         self.remove_pid(&ctx.run_id.to_string()).await?;
@@ -730,24 +755,24 @@ impl EngineRuntime {
         Ok(BuildContext {
             run_id: run_id.to_string(),
             user_id: safe_user_id,
-            workflow_path: String::new(), // Will be set after download
+            workflow_path: String::new(),
             workflow_url: String::new(),
             workdir,
-            subdirs,
+            subdirs: subdirs.clone(),
             timestamp,
             workflow_params: String::new(),
             engine_params: String::new(),
             params_file: String::new(),
-            log_dir: String::new(),
-            output_dir: String::new(),
-            data: String::new(),
-            time: String::new(),
+            log_dir: subdirs.get("logs").cloned().unwrap_or_default(),
+            output_dir: subdirs.get("outputs").cloned().unwrap_or_default(),
+            date: timestamp.format("%Y-%m-%d").to_string(),
+            time: timestamp.format("%H-%M-%S").to_string(),
         })
     }
 
     // --- Added helper methods ---
 
-    async fn store_pid(&self, run_id: &str, pid: u32) -> Result<(), anyhow::Error> {
+    async fn store_pid(&self, run_id: &str, pid: u32) -> Result<(), EngineError> {
         if let Ok(run_uuid) = Uuid::parse_str(run_id) {
             self.processes
                 .write()
@@ -762,24 +787,21 @@ impl EngineRuntime {
         Ok(())
     }
 
-    async fn get_pid(&self, run_id: &str) -> Result<Option<u32>, anyhow::Error> {
-        if let Ok(run_uuid) = Uuid::parse_str(run_id) {
-            if let Some(handle) = self.processes.read().await.get(&run_uuid) {
-                return Ok(Some(handle.pid));
-            }
+    async fn get_pid(&self, run_id: &str) -> Result<Option<u32>, EngineError> {
+        if let Ok(run_uuid) = Uuid::parse_str(run_id)
+            && let Some(handle) = self.processes.read().await.get(&run_uuid)
+        {
+            return Ok(Some(handle.pid));
         }
 
         if let Some(valkey) = &self.valkey {
-            return valkey
-                .get_run_pid(run_id)
-                .await
-                .map_err(anyhow::Error::from);
+            return valkey.get_run_pid(run_id).await;
         }
 
         Ok(None)
     }
 
-    async fn remove_pid(&self, run_id: &str) -> Result<(), anyhow::Error> {
+    async fn remove_pid(&self, run_id: &str) -> Result<(), EngineError> {
         if let Ok(run_uuid) = Uuid::parse_str(run_id) {
             self.processes.write().await.remove(&run_uuid);
         }
@@ -795,7 +817,7 @@ impl EngineRuntime {
         &self,
         mut child_process: Child,
         _ctx: &ExecutionContext,
-    ) -> Result<ExitStatus, anyhow::Error> {
+    ) -> Result<ExitStatus, EngineError> {
         let stdout_task = child_process.stdout.take().map(|stdout| {
             tokio::spawn(async move {
                 let mut lines = tokio::io::BufReader::new(stdout).lines();
@@ -815,22 +837,22 @@ impl EngineRuntime {
         });
 
         let status = child_process.wait().await.map_err(|e| {
-            anyhow::anyhow!(
+            EngineError::Generic(format!(
                 "Failed while waiting for workflow process to complete: {}",
                 e
-            )
+            ))
         })?;
 
-        if let Some(task) = stdout_task {
-            if let Err(e) = task.await {
-                warn!(error = %e, "Failed to join stdout reader task");
-            }
+        if let Some(task) = stdout_task
+            && let Err(e) = task.await
+        {
+            warn!(error = %e, "Failed to join stdout reader task");
         }
 
-        if let Some(task) = stderr_task {
-            if let Err(e) = task.await {
-                warn!(error = %e, "Failed to join stderr reader task");
-            }
+        if let Some(task) = stderr_task
+            && let Err(e) = task.await
+        {
+            warn!(error = %e, "Failed to join stderr reader task");
         }
 
         Ok(status)
@@ -840,7 +862,7 @@ impl EngineRuntime {
         &self,
         ctx: &ExecutionContext,
         state: &State,
-    ) -> Result<RunSummary, anyhow::Error> {
+    ) -> Result<RunSummary, EngineError> {
         Ok(RunSummary {
             run_id: ctx.run_id.to_string(),
             state: Some(*state),
@@ -855,7 +877,7 @@ impl EngineRuntime {
         ctx: &ExecutionContext,
         _state: &State,
         exit_status: &ExitStatus,
-    ) -> Result<common::models::Log, anyhow::Error> {
+    ) -> Result<common::models::Log, EngineError> {
         Ok(common::models::Log {
             name: Some(format!("run-{}", ctx.run_id)),
             cmd: None,
@@ -871,13 +893,8 @@ impl EngineRuntime {
     async fn parse_task_logs(
         &self,
         _ctx: &ExecutionContext,
-    ) -> Result<TaskListResponse, anyhow::Error> {
-        let task_logs = self
-            .engine
-            .get_task_logs()
-            .await
-            .map_err(anyhow::Error::from)?
-            .unwrap_or_default();
+    ) -> Result<TaskListResponse, EngineError> {
+        let task_logs = self.engine.get_task_logs().await?.unwrap_or_default();
 
         Ok(TaskListResponse {
             task_logs: Some(task_logs),

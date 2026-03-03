@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::EngineResult;
 use common::configs::{EngineConfig, ValkeyConfig};
 use redis::{AsyncCommands, aio::MultiplexedConnection};
 use std::sync::Arc;
@@ -18,7 +18,7 @@ impl Valkey {
         valkey_config: ValkeyConfig,
         engine_config: EngineConfig,
         ttl: u64,
-    ) -> Result<Self> {
+    ) -> EngineResult<Self> {
         // Build Redis URL
         let mut url = valkey_config.url.clone();
         if let Some(pass) = &valkey_config.password {
@@ -44,7 +44,7 @@ impl Valkey {
     }
 
     /// Check if this engine is new
-    pub async fn am_i_new(&self) -> Result<bool> {
+    pub async fn am_i_new(&self) -> EngineResult<bool> {
         let key = format!(
             "metis.engines.config.{}.{}",
             self.engine_config.name, self.engine_config.version
@@ -55,7 +55,7 @@ impl Valkey {
     }
 
     /// Register engine config in Redis
-    pub async fn register(&self) -> Result<()> {
+    pub async fn register(&self) -> EngineResult<()> {
         let config_key = format!(
             "metis.engines.config.{}.{}",
             self.engine_config.name, self.engine_config.version
@@ -75,7 +75,7 @@ impl Valkey {
     }
 
     /// Update heartbeat (called periodically from main tokio task)
-    pub async fn heartbeat(&self) -> Result<()> {
+    pub async fn heartbeat(&self) -> EngineResult<()> {
         // Efficiently gather CPU and RAM usage
         let mut sys = System::new_with_specifics(
             RefreshKind::nothing()
@@ -114,7 +114,7 @@ impl Valkey {
     }
 
     /// Add a new run entry for this engine
-    pub async fn add_run(&self, run_id: &str) -> Result<()> {
+    pub async fn add_run(&self, run_id: &str) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
 
         let engine_runs = format!(
@@ -127,14 +127,14 @@ impl Valkey {
         pipe.cmd("INCR").arg(&engine_runs);
         pipe.cmd("SET")
             .arg(&metis_runs)
-            .arg(&self.engine_config.id.to_string());
+            .arg(self.engine_config.id.to_string());
 
         let _: () = pipe.query_async(&mut *conn).await?;
         Ok(())
     }
 
     /// Remove a run entry
-    pub async fn remove_run(&self, run_id: &str) -> Result<()> {
+    pub async fn remove_run(&self, run_id: &str) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
 
         let engine_runs = format!(
@@ -151,21 +151,21 @@ impl Valkey {
         Ok(())
     }
 
-    pub async fn store_run_pid(&self, run_id: &str, pid: u32) -> Result<()> {
+    pub async fn store_run_pid(&self, run_id: &str, pid: u32) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
         let key = format!("metis.runs.{}.pid", run_id);
         let _: () = conn.set(key, pid).await?;
         Ok(())
     }
 
-    pub async fn get_run_pid(&self, run_id: &str) -> Result<Option<u32>> {
+    pub async fn get_run_pid(&self, run_id: &str) -> EngineResult<Option<u32>> {
         let mut conn = self.conn.lock().await;
         let key = format!("metis.runs.{}.pid", run_id);
         let pid: Option<u32> = conn.get(key).await?;
         Ok(pid)
     }
 
-    pub async fn remove_run_pid(&self, run_id: &str) -> Result<()> {
+    pub async fn remove_run_pid(&self, run_id: &str) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
         let key = format!("metis.runs.{}.pid", run_id);
         let _: () = conn.del(key).await?;
@@ -174,7 +174,7 @@ impl Valkey {
 }
 
 #[tokio::test]
-async fn test_valkey_register_and_heartbeat() -> Result<()> {
+async fn test_valkey_register_and_heartbeat() -> EngineResult<()> {
     // Given a running Redis on localhost:6379
     let valkey_config = ValkeyConfig {
         url: "redis://127.0.0.1:6379".into(),
@@ -306,7 +306,7 @@ async fn test_valkey_register_and_heartbeat() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_valkey_add_and_remove_run() -> Result<()> {
+async fn test_valkey_add_and_remove_run() -> EngineResult<()> {
     use common::configs::{
         Backend, EngineParamsConfig, UnknownBehavior, WorkflowParamsConfig, WorkflowParamsMethod,
         WorkflowParamsStyle,
