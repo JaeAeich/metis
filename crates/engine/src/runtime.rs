@@ -4,6 +4,7 @@ use crate::engine::Engine;
 use crate::error::{EngineError, EngineResult};
 use crate::execution::ProcessExecutor;
 use crate::models::{BuildContext, CommandInfo};
+use crate::pid_store::PidStore;
 use chrono::Utc;
 use common::configs::{FullEngineConfig, NatsConfig, ValkeyConfig};
 use common::models::{RunRequestMessage, RunSummary, State, TaskListResponse, ValidatedRunRequest};
@@ -29,18 +30,13 @@ pub struct ExecutionContext {
     pub cancelled: Arc<AtomicBool>,
 }
 
-#[derive(Clone, Copy, Debug)]
-struct EngineProcessHandle {
-    pid: u32,
-}
-
 pub struct EngineRuntime {
     engine: Arc<dyn Engine>,
     config: Arc<FullEngineConfig>,
     valkey: Option<Arc<Valkey>>,
     nats: Option<Arc<Nats>>,
     command_builder: Arc<EngineCommandBuilder>,
-    processes: Arc<RwLock<HashMap<Uuid, EngineProcessHandle>>>,
+    pid_store: PidStore,
     cancelled_runs: Arc<RwLock<HashSet<Uuid>>>,
     dry_run: bool,
 }
@@ -76,13 +72,15 @@ impl EngineRuntime {
             None
         };
 
+        let pid_store = PidStore::new(valkey.clone());
+
         Ok(Self {
             engine,
             config: Arc::new(config),
             valkey,
             nats,
             command_builder,
-            processes: Arc::new(RwLock::new(HashMap::new())),
+            pid_store,
             cancelled_runs: Arc::new(RwLock::new(HashSet::new())),
             dry_run,
         })
@@ -361,7 +359,7 @@ impl EngineRuntime {
             .ok_or_else(|| EngineError::Execution("Failed to get process ID".to_string()))?;
 
         // Store PID for cancellation support
-        self.store_pid(&ctx.run_id.to_string(), pid).await?;
+        self.pid_store.store(&ctx.run_id.to_string(), pid).await?;
         info!(pid = pid, "Workflow process started");
 
         // Step 4: Monitor execution (this blocks until completion or cancellation)
@@ -517,7 +515,7 @@ impl EngineRuntime {
             self.cancelled_runs.write().await.insert(parsed);
         }
 
-        let pid = match self.get_pid(run_id).await? {
+        let pid = match self.pid_store.get(run_id).await? {
             Some(pid) => pid,
             None => {
                 warn!("No PID found for run_id, workflow may have already completed");
@@ -529,7 +527,7 @@ impl EngineRuntime {
 
         // Send cancellation signal
         ProcessExecutor::cancel(pid).await?;
-        self.remove_pid(run_id).await?;
+        self.pid_store.remove(run_id).await?;
 
         info!("Workflow cancellation completed");
         Ok(())
@@ -638,7 +636,7 @@ impl EngineRuntime {
     async fn cleanup_execution(&self, ctx: &ExecutionContext) -> Result<(), EngineError> {
         info!(run_id = %ctx.run_id, "Cleaning up execution environment");
 
-        self.remove_pid(&ctx.run_id.to_string()).await?;
+        self.pid_store.remove(&ctx.run_id.to_string()).await?;
         self.cancelled_runs.write().await.remove(&ctx.run_id);
 
         // TODO: Optionally clean up working directory based on config
@@ -693,49 +691,6 @@ impl EngineRuntime {
             date: timestamp.format("%Y-%m-%d").to_string(),
             time: timestamp.format("%H-%M-%S").to_string(),
         })
-    }
-
-    // --- Added helper methods ---
-
-    async fn store_pid(&self, run_id: &str, pid: u32) -> Result<(), EngineError> {
-        if let Ok(run_uuid) = Uuid::parse_str(run_id) {
-            self.processes
-                .write()
-                .await
-                .insert(run_uuid, EngineProcessHandle { pid });
-        }
-
-        if let Some(valkey) = &self.valkey {
-            valkey.store_run_pid(run_id, pid).await?;
-        }
-
-        Ok(())
-    }
-
-    async fn get_pid(&self, run_id: &str) -> Result<Option<u32>, EngineError> {
-        if let Ok(run_uuid) = Uuid::parse_str(run_id)
-            && let Some(handle) = self.processes.read().await.get(&run_uuid)
-        {
-            return Ok(Some(handle.pid));
-        }
-
-        if let Some(valkey) = &self.valkey {
-            return valkey.get_run_pid(run_id).await;
-        }
-
-        Ok(None)
-    }
-
-    async fn remove_pid(&self, run_id: &str) -> Result<(), EngineError> {
-        if let Ok(run_uuid) = Uuid::parse_str(run_id) {
-            self.processes.write().await.remove(&run_uuid);
-        }
-
-        if let Some(valkey) = &self.valkey {
-            valkey.remove_run_pid(run_id).await?;
-        }
-
-        Ok(())
     }
 
     async fn parse_run_summary(
