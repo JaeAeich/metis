@@ -9,8 +9,12 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    location ~* \.(css|js|ico|png|svg|webmanifest|woff2?|ttf)$ {
+        try_files $uri =404;
+    }
+
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri.html $uri/ /index.html;
     }
 
     location /api/ {

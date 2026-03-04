@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/public/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/public/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/public/apple-touch-icon.png">
+    <link rel="manifest" href="/public/site.webmanifest">
+    <title>Metis - Submit Run</title>
+    <link rel="stylesheet" href="/css/theme.css">
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <a href="/" class="back-link">← Back to Runs</a>
+        <h1 class="logo">Submit Run</h1>
+        <p class="subtitle">Launch a new workflow execution</p>
+      </header>
+
+      <!-- Template quick-fill -->
+      <div class="template-selector" id="template-selector">
+        <span class="template-label">Templates:</span>
+        <button type="button" class="template-btn" onclick="loadTemplate('nextflow-rnaseq')">RNA-Seq (Nextflow)</button>
+        <button type="button" class="template-btn" onclick="loadTemplate('cwl-variant')">Variant Calling (CWL)</button>
+        <button type="button" class="template-btn" onclick="loadTemplate('snakemake-demo')">Demo (Snakemake)</button>
+      </div>
+
+      <div id="success-banner-wrap"></div>
+
+      <form id="submit-form" onsubmit="submitRun(event)" novalidate>
+        <div class="form-grid">
+
+          <!-- Left: workflow identity fields -->
+          <div>
+            <p class="form-section-title">Workflow</p>
+
+            <div class="field">
+              <label class="field-label" for="workflow_url">
+                Workflow URL <span class="field-required">*</span>
+              </label>
+              <input
+                id="workflow_url"
+                name="workflow_url"
+                type="text"
+                class="field-input"
+                placeholder="https://github.com/org/repo/workflow.nf"
+                autocomplete="off"
+                required
+              >
+              <span class="field-hint">URL to the workflow descriptor file</span>
+              <span class="field-error" id="workflow_url_err"></span>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label" for="workflow_type">
+                  Type <span class="field-required">*</span>
+                </label>
+                <select id="workflow_type" name="workflow_type" class="field-input" required>
+                  <option value="">Select…</option>
+                  <option value="NFL">NFL (Nextflow)</option>
+                  <option value="CWL">CWL</option>
+                  <option value="WDL">WDL</option>
+                  <option value="SMK">SMK (Snakemake)</option>
+                </select>
+                <span class="field-error" id="workflow_type_err"></span>
+              </div>
+              <div class="field">
+                <label class="field-label" for="workflow_type_version">
+                  Version <span class="field-required">*</span>
+                </label>
+                <input
+                  id="workflow_type_version"
+                  name="workflow_type_version"
+                  type="text"
+                  class="field-input"
+                  placeholder="DSL2"
+                  autocomplete="off"
+                  required
+                >
+                <span class="field-hint">e.g. DSL2, v1.2, 1.1</span>
+                <span class="field-error" id="workflow_type_version_err"></span>
+              </div>
+            </div>
+
+            <p class="form-section-title" style="margin-top:1.5rem;">Engine</p>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label" for="workflow_engine">Engine</label>
+                <input
+                  id="workflow_engine"
+                  name="workflow_engine"
+                  type="text"
+                  class="field-input"
+                  placeholder="nextflow"
+                  autocomplete="off"
+                >
+              </div>
+              <div class="field">
+                <label class="field-label" for="workflow_engine_version">Engine Version</label>
+                <input
+                  id="workflow_engine_version"
+                  name="workflow_engine_version"
+                  type="text"
+                  class="field-input"
+                  placeholder="24.10.0"
+                  autocomplete="off"
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: JSON editors -->
+          <div>
+            <p class="form-section-title">Parameters</p>
+
+            <div class="field">
+              <div class="editor-header">
+                <label class="field-label">Workflow Params</label>
+                <div class="editor-actions">
+                  <button type="button" class="editor-btn" onclick="formatEditor('wp')">Format</button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('wp')">Clear</button>
+                </div>
+              </div>
+              <div class="json-editor-wrap" id="wp-wrap">
+                <div id="wp" class="json-editor" contenteditable="true" spellcheck="false">{
+
+}</div>
+              </div>
+              <span class="field-error" id="wp_err"></span>
+            </div>
+
+            <div class="field">
+              <div class="editor-header">
+                <label class="field-label">Tags <span class="field-hint" style="font-weight:400;">(key/value strings)</span></label>
+                <div class="editor-actions">
+                  <button type="button" class="editor-btn" onclick="formatEditor('tags')">Format</button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('tags')">Clear</button>
+                </div>
+              </div>
+              <div class="json-editor-wrap" id="tags-wrap">
+                <div id="tags" class="json-editor json-editor--sm" contenteditable="true" spellcheck="false">{
+
+}</div>
+              </div>
+              <span class="field-error" id="tags_err"></span>
+            </div>
+
+            <div class="field">
+              <div class="editor-header">
+                <label class="field-label">Engine Parameters</label>
+                <div class="editor-actions">
+                  <button type="button" class="editor-btn" onclick="formatEditor('ep')">Format</button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('ep')">Clear</button>
+                </div>
+              </div>
+              <div class="json-editor-wrap" id="ep-wrap">
+                <div id="ep" class="json-editor json-editor--sm" contenteditable="true" spellcheck="false">{
+
+}</div>
+              </div>
+              <span class="field-error" id="ep_err"></span>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="form-error" class="form-alert form-alert-error"></div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="resetForm()">Reset</button>
+          <button type="submit" id="submit-btn" class="btn btn-primary">
+            <span id="submit-label">Submit Run</span>
+            <span id="submit-spinner" class="btn-spinner" hidden></span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script src="/js/submit.js"></script>
+  </body>
+</html>
