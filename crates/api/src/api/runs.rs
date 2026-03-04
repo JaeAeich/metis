@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::api::{ApiError, ApiResult};
 use crate::extractors::{Json as ValidatedJson, PageParams, RunFilterParams};
 use crate::repositories::RunId;
+use crate::services::ServiceError;
 use crate::state::AppState;
 
 #[utoipa::path(
@@ -177,8 +178,8 @@ pub async fn cancel_run(
     let id = RunId::new(run_id);
 
     app.services.runs.request_cancel(&id).await.map_err(|e| match e {
-        crate::services::ServiceError::RunNotFound(msg) => ApiError::NotFound(msg),
-        crate::services::ServiceError::InvalidState(msg) => ApiError::BadRequest(msg),
+        ServiceError::RunNotFound(msg) => ApiError::NotFound(msg),
+        ServiceError::InvalidState(msg) => ApiError::BadRequest(msg),
         other => ApiError::Internal(other.to_string()),
     })?;
 

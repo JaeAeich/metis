@@ -4,6 +4,9 @@ pub type RepositoryResult<T> = std::result::Result<T, RepositoryError>;
 
 #[derive(Debug, Error)]
 pub enum RepositoryError {
+    #[error("Connection error: {0}")]
+    Connection(String),
+
     #[error("Database error: {0}")]
     Database(String),
 

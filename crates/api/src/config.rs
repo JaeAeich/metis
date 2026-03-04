@@ -5,17 +5,14 @@ pub struct Config {
     #[serde(default = "default_port")]
     pub app_port: u16,
 
-    #[serde(default)]
-    pub database_url: Option<String>,
+    pub database_url: String,
 
     #[serde(default = "default_auth_url")]
     pub auth_instructions_url: String,
 
-    #[serde(default)]
-    pub nats_url: Option<String>,
+    pub nats_url: String,
 
-    #[serde(default)]
-    pub redis_url: Option<String>,
+    pub redis_url: String,
 }
 
 fn default_port() -> u16 {

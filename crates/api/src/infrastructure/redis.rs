@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use common::configs::EngineConfig;
 use redis::aio::MultiplexedConnection;
 use tokio::sync::Mutex;
 
@@ -15,11 +16,18 @@ impl RedisClient {
     }
 
     pub async fn get_assigned_engine(&self, run_id: &str) -> Option<String> {
-        // O(1) lookup using the reverse-index key written by the engine on add_run
         let key = format!("metis.runs.{}.engine", run_id);
         let mut conn = self.conn.lock().await;
         let engine_id: Result<String, _> =
             redis::cmd("GET").arg(&key).query_async(&mut *conn).await;
         engine_id.ok()
+    }
+
+    pub async fn get_engine_config(&self, name: &str, version: &str) -> Option<EngineConfig> {
+        let key = format!("metis.engines.config.{}.{}", name, version);
+        let mut conn = self.conn.lock().await;
+        let config_json: Result<String, _> =
+            redis::cmd("GET").arg(&key).query_async(&mut *conn).await;
+        config_json.ok().and_then(|json| serde_json::from_str(&json).ok())
     }
 }

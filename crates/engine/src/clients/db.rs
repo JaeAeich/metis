@@ -81,6 +81,15 @@ impl Db {
         Ok(())
     }
 
+    pub async fn get_run_state(&self, run_id: &str) -> EngineResult<Option<State>> {
+        let row = sqlx::query!("SELECT state FROM runs WHERE run_id = $1", run_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| EngineError::Generic(format!("Failed to fetch run state: {}", e)))?;
+
+        Ok(row.map(|r| r.state.parse().unwrap_or(State::Unknown)))
+    }
+
     pub async fn update_run_state(&self, run_id: &str, state: State) -> EngineResult<()> {
         sqlx::query!("UPDATE runs SET state = $1 WHERE run_id = $2", state as State, run_id,)
             .execute(&self.pool)

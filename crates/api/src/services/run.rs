@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use common::models::{RunRequest, RunRequestMessage, State, ValidatedRunRequest};
+use common::models::{RunRequest, RunRequestMessage, State};
+use common::validators::EngineRequestValidator;
 
 use super::ServiceResult;
 use crate::infrastructure::{NatsPublisher, RedisClient};
@@ -10,21 +11,17 @@ use crate::services::ServiceError;
 #[derive(Clone)]
 pub struct RunService {
     repo: Arc<dyn RunRepository>,
-    nats: Option<Arc<NatsPublisher>>,
-    redis: Option<Arc<RedisClient>>,
+    nats: Arc<NatsPublisher>,
+    redis: Arc<RedisClient>,
 }
 
 impl RunService {
-    pub fn new(repo: Arc<dyn RunRepository>) -> Self {
-        Self { repo, nats: None, redis: None }
-    }
-
     pub fn with_messaging(
         repo: Arc<dyn RunRepository>,
         nats: Arc<NatsPublisher>,
         redis: Arc<RedisClient>,
     ) -> Self {
-        Self { repo, nats: Some(nats), redis: Some(redis) }
+        Self { repo, nats, redis }
     }
 
     pub async fn find_by_id(&self, id: &RunId) -> ServiceResult<Option<Run>> {
@@ -47,21 +44,19 @@ impl RunService {
     ) -> ServiceResult<()> {
         self.repo.insert_run(run_id, user_id, req).await?;
 
-        let nats = self
-            .nats
-            .as_ref()
-            .ok_or_else(|| ServiceError::Messaging("NATS not configured".to_string()))?;
+        let engine_config = self
+            .redis
+            .get_engine_config(&req.workflow_engine, &req.workflow_engine_version)
+            .await
+            .ok_or_else(|| {
+                ServiceError::EngineConfigNotFound(
+                    req.workflow_engine.clone(),
+                    req.workflow_engine_version.clone(),
+                )
+            })?;
 
-        let validated = ValidatedRunRequest {
-            workflow_params: req.workflow_params.clone(),
-            workflow_type: req.workflow_type.clone(),
-            workflow_type_version: req.workflow_type_version.clone(),
-            tags: req.tags.clone(),
-            workflow_engine_parameters: None,
-            workflow_engine: req.workflow_engine.clone(),
-            workflow_engine_version: req.workflow_engine_version.clone(),
-            workflow_url: req.workflow_url.clone(),
-        };
+        let validator = EngineRequestValidator::new(engine_config);
+        let validated = validator.validate(req).map_err(ServiceError::Validation)?;
 
         let message = RunRequestMessage {
             run_id: run_id.to_string(),
@@ -77,7 +72,7 @@ impl RunService {
             req.workflow_type_version
         );
 
-        nats.publish_run(&topic, &message).await.map_err(ServiceError::Messaging)?;
+        self.nats.publish_run(&topic, &message).await.map_err(ServiceError::Messaging)?;
 
         Ok(())
     }
@@ -103,23 +98,15 @@ impl RunService {
             },
         }
 
-        let nats = self
-            .nats
-            .as_ref()
-            .ok_or_else(|| ServiceError::Messaging("NATS not configured".to_string()))?;
-
-        let engine_id = if let Some(redis) = &self.redis {
-            redis
-                .get_assigned_engine(id.as_str())
-                .await
-                .ok_or_else(|| ServiceError::Messaging(format!("No engine found for run {}", id)))?
-        } else {
-            return Err(ServiceError::Messaging("Redis not configured".to_string()));
-        };
+        let engine_id =
+            self.redis.get_assigned_engine(id.as_str()).await.ok_or_else(|| {
+                ServiceError::Messaging(format!("No engine found for run {}", id))
+            })?;
 
         self.repo.update_state(id, State::Canceling).await?;
 
-        nats.publish_cancel(&engine_id, id.as_str())
+        self.nats
+            .publish_cancel(&engine_id, id.as_str())
             .await
             .map_err(ServiceError::Messaging)?;
 
@@ -134,7 +121,7 @@ impl RunService {
         self.repo.finalize_orphaned_run(id, state).await.map_err(Into::into)
     }
 
-    pub fn redis(&self) -> Option<&Arc<RedisClient>> {
-        self.redis.as_ref()
+    pub fn redis(&self) -> &Arc<RedisClient> {
+        &self.redis
     }
 }

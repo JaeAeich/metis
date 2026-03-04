@@ -57,6 +57,13 @@ impl From<ServiceError> for ApiError {
             ServiceError::InvalidState(msg) => ApiError::BadRequest(msg),
             ServiceError::Messaging(msg) => ApiError::Internal(msg),
             ServiceError::Repository(e) => ApiError::Internal(e.to_string()),
+            ServiceError::Validation(e) => {
+                tracing::warn!("Run request validation failed: {}", e);
+                ApiError::BadRequest("Invalid run request parameters".to_string())
+            },
+            ServiceError::EngineConfigNotFound(engine, version) => {
+                ApiError::BadRequest(format!("Engine not found: {} {}", engine, version))
+            },
         }
     }
 }

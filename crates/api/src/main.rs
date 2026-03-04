@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use chrono::Utc;
 use common::models::State;
 use metis_api::docs::docs;
 use metis_api::routes::get_router;
@@ -35,17 +36,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 };
 
-                let redis = match services.runs.redis() {
-                    Some(r) => r.clone(),
-                    None => continue,
-                };
+                let redis = services.runs.redis().clone();
+
+                const ORPHAN_GRACE_SECS: i64 = 120;
 
                 for run in runs {
                     let engine_id = redis.get_assigned_engine(run.id.as_str()).await;
 
-                    if engine_id.is_none() {
+                    let last_seen = run.start_time.unwrap_or(run.created_at);
+                    let age_secs = (Utc::now() - last_seen).num_seconds();
+
+                    if engine_id.is_none() && age_secs >= ORPHAN_GRACE_SECS {
                         tracing::warn!(
                             run_id = %run.id,
+                            age_secs = age_secs,
                             "Orphaned run detected (no assigned engine), marking as SYSTEM_ERROR"
                         );
                         if let Err(e) =
