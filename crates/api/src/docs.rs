@@ -8,8 +8,10 @@ use crate::api::logs::{LogLineListResponse, LogLineResponse};
 #[openapi(
     paths(
         crate::api::runs::list_runs,
+        crate::api::runs::create_run,
         crate::api::runs::get_run_log,
         crate::api::runs::get_run_status,
+        crate::api::runs::cancel_run,
         crate::api::tasks::list_tasks,
         crate::api::tasks::get_task,
         crate::api::logs::list_log_lines,
@@ -19,6 +21,8 @@ use crate::api::logs::{LogLineListResponse, LogLineResponse};
         schemas(
             common::models::RunListResponse,
             common::models::RunLog,
+            common::models::RunRequest,
+            common::models::RunId,
             common::models::RunStatus,
             common::models::TaskListResponse,
             common::models::TaskLog,

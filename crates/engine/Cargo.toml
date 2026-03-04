@@ -5,6 +5,7 @@ async-trait = "0.1.89"
 chrono = { features = [ "serde" ], version = "0.4.44" }
 clap = { features = [ "derive" ], version = "4.5.60" }
 common = { path = "../common" }
+envy = "0.4"
 futures = "0.3.32"
 nix = { features = [ "process", "signal" ], version = "0.30" }
 redis = { workspace = true }
@@ -16,6 +17,7 @@ sysinfo = "0.37.2"
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+url = "2.5.8"
 uuid = { workspace = true }
 
 [dev-dependencies]

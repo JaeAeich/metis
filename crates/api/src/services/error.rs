@@ -15,6 +15,12 @@ pub enum ServiceError {
     #[error("Invalid filter: {0}")]
     InvalidFilter(String),
 
+    #[error("Invalid state for operation: {0}")]
+    InvalidState(String),
+
+    #[error("Messaging error: {0}")]
+    Messaging(String),
+
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 }

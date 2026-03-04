@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use common::models::RunRequest;
 use sqlx::{PgPool, Row};
 
 use super::{RepositoryResult, Run, RunId, State, calculate_next_token, pagination_offset};
@@ -15,6 +16,15 @@ pub trait RunRepository: Send + Sync {
         pagination: Pagination,
     ) -> RepositoryResult<PaginatedResult<Run>>;
     async fn count_by_state(&self) -> RepositoryResult<HashMap<String, i64>>;
+    async fn insert_run(
+        &self,
+        run_id: &str,
+        user_id: &str,
+        req: &RunRequest,
+    ) -> RepositoryResult<()>;
+    async fn update_state(&self, id: &RunId, state: State) -> RepositoryResult<()>;
+    async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>>;
+    async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()>;
 }
 
 pub struct SqlxRunRepository {
@@ -130,6 +140,84 @@ impl RunRepository for SqlxRunRepository {
             .into_iter()
             .map(|r| (r.get::<String, _>("state"), r.get::<i64, _>("count")))
             .collect())
+    }
+
+    async fn insert_run(
+        &self,
+        run_id: &str,
+        user_id: &str,
+        req: &RunRequest,
+    ) -> RepositoryResult<()> {
+        let workflow_params = req.workflow_params.clone();
+        let engine_params = req
+            .workflow_engine_parameters
+            .as_ref()
+            .map(|params| serde_json::to_value(params).unwrap_or(serde_json::Value::Null));
+        let tags = serde_json::to_value(req.tags.as_ref().unwrap_or(&Default::default()))
+            .unwrap_or(serde_json::Value::Object(Default::default()));
+
+        sqlx::query(
+            r#"
+            INSERT INTO runs (
+                run_id, user_id, state,
+                workflow_type, workflow_type_version, workflow_url,
+                workflow_engine, workflow_engine_version,
+                workflow_params, workflow_engine_parameters,
+                tags, start_time
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+            ON CONFLICT (run_id) DO NOTHING
+            "#,
+        )
+        .bind(run_id)
+        .bind(user_id)
+        .bind(State::Queued.to_string())
+        .bind(&req.workflow_type)
+        .bind(&req.workflow_type_version)
+        .bind(&req.workflow_url)
+        .bind(&req.workflow_engine)
+        .bind(&req.workflow_engine_version)
+        .bind(workflow_params)
+        .bind(engine_params)
+        .bind(tags)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn update_state(&self, id: &RunId, state: State) -> RepositoryResult<()> {
+        sqlx::query("UPDATE runs SET state = $1 WHERE run_id = $2")
+            .bind(state.to_string())
+            .bind(id.as_str())
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT run_id, user_id, state, workflow_type, workflow_type_version,
+                workflow_url, workflow_engine, workflow_engine_version,
+                workflow_params, workflow_engine_parameters, tags,
+                start_time, end_time, created_at
+            FROM runs
+            WHERE state IN ('RUNNING', 'INITIALIZING')
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(map_row_to_run).collect())
+    }
+
+    async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()> {
+        sqlx::query("UPDATE runs SET state = $1, end_time = NOW() WHERE run_id = $2")
+            .bind(state.to_string())
+            .bind(id.as_str())
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 }
 

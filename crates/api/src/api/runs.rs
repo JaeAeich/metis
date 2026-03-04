@@ -1,9 +1,10 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use common::models::{RunListResponse, RunLog, RunStatus};
+use common::models::{RunId as RunIdModel, RunListResponse, RunLog, RunRequest, RunStatus};
+use uuid::Uuid;
 
 use crate::api::{ApiError, ApiResult};
-use crate::extractors::{PageParams, RunFilterParams};
+use crate::extractors::{Json as ValidatedJson, PageParams, RunFilterParams};
 use crate::repositories::RunId;
 use crate::state::AppState;
 
@@ -85,8 +86,8 @@ pub async fn get_run_log(
                 run.workflow_engine_parameters.unwrap_or(serde_json::Value::Null),
             )
             .ok(),
-            workflow_engine: run.workflow_engine,
-            workflow_engine_version: run.workflow_engine_version,
+            workflow_engine: run.workflow_engine.unwrap_or_default(),
+            workflow_engine_version: run.workflow_engine_version.unwrap_or_default(),
             workflow_url: run.workflow_url,
         })),
         state: Some(run.state),
@@ -126,4 +127,60 @@ pub async fn get_run_status(
         run_id: run.id.into_inner(),
         state: Some(run.state),
     }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/runs",
+    tag = "Runs",
+    request_body = RunRequest,
+    responses(
+        (status = 200, description = "Run created and queued", body = RunIdModel),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn create_run(
+    State(app): State<AppState>,
+    ValidatedJson(req): ValidatedJson<RunRequest>,
+) -> ApiResult<Json<RunIdModel>> {
+    let run_id = Uuid::now_v7().to_string();
+    let user_id = "default";
+
+    app.services
+        .runs
+        .create_run(&run_id, user_id, &req)
+        .await
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
+
+    Ok(Json(RunIdModel { run_id: Some(run_id) }))
+}
+
+#[utoipa::path(
+    post,
+    path = "/runs/{run_id}/cancel",
+    tag = "Runs",
+    params(
+        ("run_id" = String, Path, description = "Workflow run ID")
+    ),
+    responses(
+        (status = 200, description = "Cancel request accepted"),
+        (status = 400, description = "Run cannot be canceled in its current state"),
+        (status = 404, description = "Run not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn cancel_run(
+    State(app): State<AppState>,
+    Path(run_id): Path<String>,
+) -> ApiResult<Json<serde_json::Value>> {
+    let id = RunId::new(run_id);
+
+    app.services.runs.request_cancel(&id).await.map_err(|e| match e {
+        crate::services::ServiceError::RunNotFound(msg) => ApiError::NotFound(msg),
+        crate::services::ServiceError::InvalidState(msg) => ApiError::BadRequest(msg),
+        other => ApiError::Internal(other.to_string()),
+    })?;
+
+    Ok(Json(serde_json::json!({ "status": "cancel requested" })))
 }

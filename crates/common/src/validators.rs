@@ -85,33 +85,22 @@ impl EngineRequestValidator {
             ));
         }
 
-        if let Some(ref requested_engine) = request.workflow_engine
-            && !requested_engine.eq_ignore_ascii_case(&self.config.name)
-        {
+        if !request.workflow_engine.eq_ignore_ascii_case(&self.config.name) {
             return Err(ValidationError::ValidationFailed(
                 "workflow_engine".to_string(),
                 format!(
                     "Unsupported workflow_engine '{}'. Expected '{}'",
-                    requested_engine, self.config.name
+                    request.workflow_engine, self.config.name
                 ),
             ));
         }
 
-        if request.workflow_engine.is_none() && request.workflow_engine_version.is_some() {
-            return Err(ValidationError::ValidationFailed(
-                "workflow_engine_version".to_string(),
-                "workflow_engine must be provided when workflow_engine_version is set".to_string(),
-            ));
-        }
-
-        if let Some(ref requested_version) = request.workflow_engine_version
-            && requested_version != &self.config.version
-        {
+        if request.workflow_engine_version != self.config.version {
             return Err(ValidationError::ValidationFailed(
                 "workflow_engine_version".to_string(),
                 format!(
                     "Unsupported workflow_engine_version '{}'. Expected '{}'",
-                    requested_version, self.config.version
+                    request.workflow_engine_version, self.config.version
                 ),
             ));
         }
@@ -709,8 +698,8 @@ mod tests {
             workflow_type_version: "1.0".to_string(),
             tags: None,
             workflow_engine_parameters: None,
-            workflow_engine: None,
-            workflow_engine_version: None,
+            workflow_engine: "test".to_string(),
+            workflow_engine_version: "1.0".to_string(),
             workflow_url: "http://example.com/workflow".to_string(),
         };
 

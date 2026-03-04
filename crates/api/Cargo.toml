@@ -3,6 +3,7 @@ name = "metis-api"
 path = "src/main.rs"
 
 [dependencies]
+async-nats = { workspace = true }
 async-stream = "0.3.6"
 async-trait = "0.1.89"
 axum = { features = [ "macros" ], version = "0.8.8" }
@@ -11,6 +12,7 @@ base64 = "0.22.1"
 chrono = { features = [ "serde" ], version = "0.4.44" }
 common = { path = "../common", version = "0.1.0" }
 futures = "0.3.32"
+redis = { workspace = true }
 serde = { features = [ "derive" ], workspace = true }
 serde_json = { workspace = true }
 sqlx = { features = [
