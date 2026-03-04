@@ -72,7 +72,7 @@ impl Valkey {
             self.engine_config.name, self.engine_config.version
         );
         let base = format!(
-            "metis.engines.{}.{}.{}",
+            "metis.engines.{}:{}:{}",
             self.engine_config.name, self.engine_config.version, self.engine_config.id
         );
         let cpu_key = format!("{base}.cpu");
@@ -100,7 +100,7 @@ impl Valkey {
         let mut conn = self.conn.lock().await;
 
         let engine_runs = format!(
-            "metis.engines.{}.{}.{}.runs",
+            "metis.engines.{}:{}:{}.runs",
             self.engine_config.name, self.engine_config.version, self.engine_config.id
         );
         // Direct reverse-index for O(1) engine lookup during cancel
@@ -118,7 +118,7 @@ impl Valkey {
         let mut conn = self.conn.lock().await;
 
         let engine_runs = format!(
-            "metis.engines.{}.{}.{}.runs",
+            "metis.engines.{}:{}:{}.runs",
             self.engine_config.name, self.engine_config.version, self.engine_config.id
         );
         let run_engine_index = format!("metis.runs.{}.engine", run_id);

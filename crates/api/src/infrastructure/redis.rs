@@ -76,7 +76,7 @@ impl RedisClient {
 
     pub async fn list_running_engines(&self) -> Vec<EngineInstance> {
         let mut conn = self.conn.lock().await;
-        let pattern = "metis.engines.*.*.*.cpu";
+        let pattern = "metis.engines.*:*:*.cpu";
         let mut cursor: u64 = 0;
         let mut instances: HashMap<String, EngineInstance> = HashMap::new();
         let mut configs_cache: HashMap<(String, String), Option<EngineConfig>> = HashMap::new();
@@ -93,11 +93,11 @@ impl RedisClient {
                 Ok((new_cursor, keys)) => {
                     for key in keys {
                         if let Some((name, version, id)) = Self::parse_engine_instance_key(&key) {
-                            let instance_key = format!("{}.{}.{}", name, version, id);
+                            let instance_key = format!("{}:{}:{}", name, version, id);
                             if let std::collections::hash_map::Entry::Vacant(e) =
                                 instances.entry(instance_key)
                             {
-                                let base = format!("metis.engines.{}.{}.{}", name, version, id);
+                                let base = format!("metis.engines.{}:{}:{}", name, version, id);
                                 let cpu_key = format!("{}.cpu", base);
                                 let ram_key = format!("{}.ram", base);
                                 let runs_key = format!("{}.runs", base);
@@ -176,13 +176,16 @@ impl RedisClient {
 
     fn parse_engine_instance_key(key: &str) -> Option<(String, String, String)> {
         let parts: Vec<&str> = key.split('.').collect();
-        if parts.len() >= 5 && parts[0] == "metis" && parts[1] == "engines" {
-            let name = parts[2].to_string();
-            let version = parts[3].to_string();
-            let id = parts[4].to_string();
-            Some((name, version, id))
-        } else {
-            None
+        if parts.len() >= 4 && parts[0] == "metis" && parts[1] == "engines" {
+            let instance_part = parts[2];
+            let instance_parts: Vec<&str> = instance_part.split(':').collect();
+            if instance_parts.len() == 3 {
+                let name = instance_parts[0].to_string();
+                let version = instance_parts[1].to_string();
+                let id = instance_parts[2].to_string();
+                return Some((name, version, id));
+            }
         }
+        None
     }
 }
