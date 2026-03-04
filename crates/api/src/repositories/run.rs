@@ -23,6 +23,12 @@ pub trait RunRepository: Send + Sync {
         req: &RunRequest,
     ) -> RepositoryResult<()>;
     async fn update_state(&self, id: &RunId, state: State) -> RepositoryResult<()>;
+    async fn update_state_if(
+        &self,
+        id: &RunId,
+        expected: State,
+        new: State,
+    ) -> RepositoryResult<bool>;
     async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>>;
     async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()>;
 }
@@ -192,6 +198,21 @@ impl RunRepository for SqlxRunRepository {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    async fn update_state_if(
+        &self,
+        id: &RunId,
+        expected: State,
+        new: State,
+    ) -> RepositoryResult<bool> {
+        let result = sqlx::query("UPDATE runs SET state = $1 WHERE run_id = $2 AND state = $3")
+            .bind(new.to_string())
+            .bind(id.as_str())
+            .bind(expected.to_string())
+            .execute(&self.pool)
+            .await?;
+        Ok(result.rows_affected() > 0)
     }
 
     async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>> {

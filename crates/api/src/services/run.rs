@@ -78,39 +78,44 @@ impl RunService {
     }
 
     pub async fn request_cancel(&self, id: &RunId) -> ServiceResult<Option<String>> {
-        let run = self
-            .repo
-            .find_by_id(id)
-            .await?
-            .ok_or_else(|| ServiceError::RunNotFound(id.to_string()))?;
+        loop {
+            let run = self
+                .repo
+                .find_by_id(id)
+                .await?
+                .ok_or_else(|| ServiceError::RunNotFound(id.to_string()))?;
 
-        match run.state {
-            State::Queued => {
-                self.repo.update_state(id, State::Canceled).await?;
-                return Ok(None);
-            },
-            State::Initializing | State::Running => {},
-            _ => {
-                return Err(ServiceError::InvalidState(format!(
-                    "Cannot cancel run in state: {}",
-                    run.state
-                )));
-            },
+            match run.state {
+                State::Queued => {
+                    let updated =
+                        self.repo.update_state_if(id, State::Queued, State::Canceled).await?;
+                    if updated {
+                        return Ok(None);
+                    }
+                },
+                State::Initializing | State::Running => {
+                    let engine_id =
+                        self.redis.get_assigned_engine(id.as_str()).await.ok_or_else(|| {
+                            ServiceError::Messaging(format!("No engine found for run {}", id))
+                        })?;
+
+                    self.repo.update_state(id, State::Canceling).await?;
+
+                    self.nats
+                        .publish_cancel(&engine_id, id.as_str())
+                        .await
+                        .map_err(ServiceError::Messaging)?;
+
+                    return Ok(Some(engine_id));
+                },
+                _ => {
+                    return Err(ServiceError::InvalidState(format!(
+                        "Cannot cancel run in state: {}",
+                        run.state
+                    )));
+                },
+            }
         }
-
-        let engine_id =
-            self.redis.get_assigned_engine(id.as_str()).await.ok_or_else(|| {
-                ServiceError::Messaging(format!("No engine found for run {}", id))
-            })?;
-
-        self.repo.update_state(id, State::Canceling).await?;
-
-        self.nats
-            .publish_cancel(&engine_id, id.as_str())
-            .await
-            .map_err(ServiceError::Messaging)?;
-
-        Ok(Some(engine_id))
     }
 
     pub async fn find_active_runs(&self) -> ServiceResult<Vec<Run>> {
