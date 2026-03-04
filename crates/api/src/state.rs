@@ -8,13 +8,14 @@ use crate::infrastructure::{Database, NatsPublisher, RedisClient};
 use crate::repositories::{
     RepositoryError, SqlxLogRepository, SqlxRunRepository, SqlxTaskRepository,
 };
-use crate::services::{LogService, RunService, TaskService};
+use crate::services::{LogService, RunService, ServiceInfoService, TaskService};
 
 #[derive(Clone)]
 pub struct Services {
     pub runs: RunService,
     pub tasks: TaskService,
     pub logs: LogService,
+    pub service_info: ServiceInfoService,
 }
 
 #[derive(Clone)]
@@ -41,12 +42,16 @@ impl AppState {
             .await
             .map_err(|e| RepositoryError::Connection(e.to_string()))?;
 
-        let run_service = RunService::with_messaging(run_repo, Arc::new(nats), Arc::new(redis));
+        let run_service =
+            RunService::with_messaging(run_repo.clone(), Arc::new(nats), Arc::new(redis.clone()));
+        let service_info_service =
+            ServiceInfoService::new(run_repo, Arc::new(redis), config.clone());
 
         let services = Services {
             runs: run_service,
             tasks: TaskService::new(task_repo),
             logs: LogService::new(log_repo),
+            service_info: service_info_service,
         };
 
         Ok(Self {

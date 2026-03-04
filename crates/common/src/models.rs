@@ -143,6 +143,39 @@ pub struct ServiceInfo {
     #[serde(rename = "tags")]
     #[schema(example = json!({"environment": "production", "version": "1.0.0"}))]
     pub tags: std::collections::HashMap<String, String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system: Option<SystemInfo>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub engines: Option<Vec<EngineSummary>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub database: Option<DatabaseStats>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct SystemInfo {
+    pub cpu_usage_percent: f32,
+    pub memory_used_mb: u64,
+    pub memory_total_mb: u64,
+    pub uptime_secs: u64,
+    pub load_average: Option<[f64; 3]>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct EngineSummary {
+    pub name: String,
+    pub version: String,
+    pub workflow_types: Vec<String>,
+    pub workflow_type_versions: Vec<String>,
+    pub backend: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct DatabaseStats {
+    pub total_runs: i64,
+    pub active_runs: i64,
 }
 
 /// An object that can optionally include information about the error.
