@@ -332,5 +332,6 @@ document.body.addEventListener("htmx:beforeSwap", (evt) => {
 
 window.loadRun = _loadRun;
 window.cancelRun = _cancelRun;
+window.cancelRunById = _cancelRunById;
 window.showTab = _showTab;
 window.toggleLogs = _toggleLogs;

@@ -67,10 +67,7 @@ body {
 .logo {
   font-size: 2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--custom-primary), var(--custom-secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--custom-primary);
 }
 
 .subtitle {
@@ -173,6 +170,9 @@ body {
 /* ── Filters ─────────────────────────────────────────────────────────────── */
 
 .filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 1.5rem;
 }
 
