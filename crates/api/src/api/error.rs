@@ -54,7 +54,16 @@ impl From<ServiceError> for ApiError {
             ServiceError::RunNotFound(id) => ApiError::NotFound(format!("Run not found: {}", id)),
             ServiceError::TaskNotFound(id) => ApiError::NotFound(format!("Task not found: {}", id)),
             ServiceError::InvalidFilter(msg) => ApiError::BadRequest(msg),
+            ServiceError::InvalidState(msg) => ApiError::BadRequest(msg),
+            ServiceError::Messaging(msg) => ApiError::Internal(msg),
             ServiceError::Repository(e) => ApiError::Internal(e.to_string()),
+            ServiceError::Validation(e) => {
+                tracing::warn!("Run request validation failed: {}", e);
+                ApiError::BadRequest("Invalid run request parameters".to_string())
+            },
+            ServiceError::EngineConfigNotFound(engine, version) => {
+                ApiError::BadRequest(format!("Engine not found: {} {}", engine, version))
+            },
         }
     }
 }

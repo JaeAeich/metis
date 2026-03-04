@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use common::configs::DatabaseConfig;
 use common::models::{Log, State, TaskLog, ValidatedRunRequest};
 use sqlx::PgPool;
 use tracing::debug;
@@ -27,11 +26,11 @@ impl Stream {
 }
 
 impl Db {
-    pub async fn new(config: &DatabaseConfig) -> EngineResult<Self> {
-        let pool = PgPool::connect(&config.database_url)
+    pub async fn new(database_url: &str) -> EngineResult<Self> {
+        let pool = PgPool::connect(database_url)
             .await
             .map_err(|e| EngineError::Generic(format!("Failed to connect to database: {}", e)))?;
-        let display_url = config.database_url.split('@').next_back().unwrap_or("database");
+        let display_url = database_url.split('@').next_back().unwrap_or("database");
         debug!(url = %display_url, "Connected to database");
         Ok(Self { pool })
     }
@@ -60,6 +59,7 @@ impl Db {
                 workflow_params, workflow_engine_parameters,
                 tags, start_time
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (run_id) DO UPDATE SET state = EXCLUDED.state
             "#,
             run_id,
             user_id,
@@ -79,6 +79,15 @@ impl Db {
         .map_err(|e| EngineError::Generic(format!("Failed to insert run: {}", e)))?;
 
         Ok(())
+    }
+
+    pub async fn get_run_state(&self, run_id: &str) -> EngineResult<Option<State>> {
+        let row = sqlx::query!("SELECT state FROM runs WHERE run_id = $1", run_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| EngineError::Generic(format!("Failed to fetch run state: {}", e)))?;
+
+        Ok(row.map(|r| r.state.parse().unwrap_or(State::Unknown)))
     }
 
     pub async fn update_run_state(&self, run_id: &str, state: State) -> EngineResult<()> {

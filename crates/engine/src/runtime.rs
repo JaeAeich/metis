@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::process::ExitStatus;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use chrono::{DateTime, Utc};
@@ -32,7 +31,6 @@ pub struct ExecutionContext {
     pub workdir: String,
     pub subdirs: HashMap<String, String>,
     pub started_at: DateTime<Utc>,
-    pub cancelled: Arc<AtomicBool>,
 }
 
 pub struct EngineRuntime {
@@ -82,12 +80,6 @@ impl EngineRuntime {
     }
 
     pub async fn start(self: Arc<Self>) -> EngineResult<()> {
-        let Some(nats) = &self.nats else {
-            return Err(EngineError::Generic(
-                "NATS is not configured for this runtime instance".to_string(),
-            ));
-        };
-
         if let Some(valkey) = &self.valkey {
             let is_new = valkey.am_i_new().await?;
             info!(
@@ -108,6 +100,13 @@ impl EngineRuntime {
                 }
             });
         }
+
+        let Some(nats) = &self.nats else {
+            warn!("NATS not configured — server mode disabled, waiting for shutdown signal");
+            tokio::signal::ctrl_c().await?;
+            info!("Received shutdown signal");
+            return Ok(());
+        };
 
         let registration_event = serde_json::json!({
             "event": "engine_registered",
@@ -160,7 +159,25 @@ impl EngineRuntime {
 
     async fn handle_run_message(&self, payload: &[u8]) -> EngineResult<()> {
         let run_message = Self::parse_run_message(payload)?;
-        let run_id = Uuid::now_v7();
+        let run_id = Uuid::parse_str(&run_message.run_id)
+            .map_err(|e| EngineError::Generic(format!("Invalid run_id: {}", e)))?;
+
+        if let Some(db) = &self.db {
+            match db.get_run_state(&run_id.to_string()).await {
+                Ok(Some(common::models::State::Canceled)) => {
+                    info!(run_id = %run_id, "Run was canceled before engine picked it up, skipping");
+                    return Ok(());
+                },
+                Ok(Some(common::models::State::Canceling)) => {
+                    info!(run_id = %run_id, "Run is being canceled, skipping execution");
+                    return Ok(());
+                },
+                Err(e) => {
+                    warn!(run_id = %run_id, error = %e, "Failed to check run state before execution, proceeding");
+                },
+                _ => {},
+            }
+        }
 
         if let Some(valkey) = &self.valkey {
             valkey.add_run(&run_id.to_string()).await?;
@@ -224,18 +241,9 @@ impl EngineRuntime {
     }
 
     fn parse_run_message(payload: &[u8]) -> EngineResult<RunRequestMessage> {
-        if let Ok(message) = serde_json::from_slice::<RunRequestMessage>(payload) {
-            return Ok(message);
-        }
-
-        let request: ValidatedRunRequest = serde_json::from_slice(payload).map_err(|e| {
-            EngineError::Generic(format!(
-                "Unable to parse run message as RunRequestMessage or ValidatedRunRequest: {}",
-                e
-            ))
-        })?;
-
-        Ok(RunRequestMessage { request, user_id: "default".to_string() })
+        serde_json::from_slice::<RunRequestMessage>(payload).map_err(|e| {
+            EngineError::Generic(format!("Unable to parse run message as RunRequestMessage: {}", e))
+        })
     }
 
     fn parse_cancel_run_id(payload: &[u8]) -> EngineResult<String> {
@@ -280,7 +288,6 @@ impl EngineRuntime {
             workdir: base_context.workdir.clone(),
             subdirs: base_context.subdirs.clone(),
             started_at,
-            cancelled: Arc::new(AtomicBool::new(false)),
         };
 
         let span = tracing::info_span!(
@@ -398,14 +405,12 @@ impl EngineRuntime {
         let execution_output = ProcessExecutor::monitor(child_process, line_callback).await?;
         let exit_status = execution_output.exit_status;
 
-        if self.is_run_cancelled(&ctx.run_id).await {
-            ctx.cancelled.store(true, Ordering::Relaxed);
-        }
+        let is_cancelled = self.is_run_cancelled(&ctx.run_id).await;
 
         // Step 5: Parse results regardless of success/failure/cancellation
         span.record("state", "parsing");
         let (run_summary, run_log, task_logs) =
-            self.parse_execution_results(&ctx, &exit_status).await?;
+            self.parse_execution_results(&ctx, &exit_status, is_cancelled).await?;
 
         // Step 6: Update database with results
         span.record("state", "updating_db");
@@ -501,8 +506,9 @@ impl EngineRuntime {
         &self,
         ctx: &ExecutionContext,
         exit_status: &ExitStatus,
+        is_cancelled: bool,
     ) -> Result<(RunSummary, common::models::Log, TaskListResponse), EngineError> {
-        let state = if ctx.cancelled.load(Ordering::Relaxed) {
+        let state = if is_cancelled {
             State::Canceled
         } else if exit_status.success() {
             State::Complete
@@ -560,55 +566,6 @@ impl EngineRuntime {
         // TODO: Optionally clean up working directory based on config
         // TODO: Archive logs if configured
         Ok(())
-    }
-
-    pub fn create_workdir(
-        config: &FullEngineConfig,
-        run_id: &str,
-        user_id: &str,
-    ) -> Result<BuildContext, std::io::Error> {
-        let timestamp = Utc::now();
-        let safe_user_id = user_id.replace('/', "_");
-
-        let pattern = config
-            .runs
-            .workdir
-            .pattern
-            .replace("{run_id}", run_id)
-            .replace("{user_id}", &safe_user_id)
-            .replace("{date}", &timestamp.format("%Y-%m-%d").to_string())
-            .replace("{time}", &timestamp.format("%H-%M-%S").to_string())
-            .replace("{timestamp}", &timestamp.timestamp().to_string());
-
-        let workdir = format!("{}/{}", config.runs.workdir.base, pattern);
-        std::fs::create_dir_all(&workdir)?;
-
-        // Create subdirectories
-        let mut subdirs = HashMap::new();
-        if let Some(ref subdir_config) = config.runs.workdir.subdirs {
-            for (name, subdir) in subdir_config {
-                let full_path = format!("{}/{}", workdir, subdir);
-                std::fs::create_dir_all(&full_path)?;
-                subdirs.insert(name.clone(), full_path);
-            }
-        }
-
-        Ok(BuildContext {
-            run_id: run_id.to_string(),
-            user_id: safe_user_id,
-            workflow_path: String::new(),
-            workflow_url: String::new(),
-            workdir,
-            subdirs: subdirs.clone(),
-            timestamp,
-            workflow_params: String::new(),
-            engine_params: String::new(),
-            params_file: String::new(),
-            log_dir: subdirs.get("logs").cloned().unwrap_or_default(),
-            output_dir: subdirs.get("outputs").cloned().unwrap_or_default(),
-            date: timestamp.format("%Y-%m-%d").to_string(),
-            time: timestamp.format("%H-%M-%S").to_string(),
-        })
     }
 
     async fn parse_run_summary(

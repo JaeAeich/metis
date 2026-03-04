@@ -28,6 +28,10 @@ pub struct BaseConfig {
 pub struct NatsConfig {
     #[serde(default = "default_nats_url")]
     pub url: String,
+    #[serde(default)]
+    pub user: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
     #[serde(default = "default_notification_subject")]
     pub notification_subject: String,
 }
@@ -100,6 +104,8 @@ impl Default for NatsConfig {
     fn default() -> Self {
         Self {
             url: "nats://localhost:4222".into(),
+            user: None,
+            password: None,
             notification_subject: default_notification_subject(),
         }
     }

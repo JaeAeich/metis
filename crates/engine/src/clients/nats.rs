@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_nats::{Client, Subscriber};
-use common::configs::{EngineConfig, NatsConfig};
+use common::configs::EngineConfig;
 
 use crate::error::{EngineError, EngineResult};
 
@@ -12,14 +12,31 @@ pub struct Nats {
 }
 
 impl Nats {
-    pub async fn new(nats_config: &NatsConfig, engine_config: EngineConfig) -> EngineResult<Self> {
-        let client = async_nats::connect(&nats_config.url)
-            .await
-            .map_err(|e| EngineError::Network(e.to_string()))?;
+    pub async fn new(
+        url: &str,
+        notification_subject: &str,
+        engine_config: EngineConfig,
+    ) -> EngineResult<Self> {
+        let client = if let Ok(parsed) = url::Url::parse(url) {
+            if !parsed.username().is_empty() {
+                async_nats::ConnectOptions::with_user_and_password(
+                    parsed.username().to_string(),
+                    parsed.password().unwrap_or("").to_string(),
+                )
+                .connect(url)
+                .await
+            } else {
+                async_nats::connect(url).await
+            }
+        } else {
+            async_nats::connect(url).await
+        }
+        .map_err(|e| EngineError::Network(e.to_string()))?;
+
         Ok(Self {
             client: Arc::new(client),
             engine_config,
-            notification_subject: nats_config.notification_subject.clone(),
+            notification_subject: notification_subject.to_string(),
         })
     }
 
@@ -47,7 +64,7 @@ impl Nats {
         for topic in self.run_topics() {
             let sub = self
                 .client
-                .subscribe(topic)
+                .queue_subscribe(topic, "engine-workers".to_string())
                 .await
                 .map_err(|e| EngineError::Network(e.to_string()))?;
             subs.push(sub);

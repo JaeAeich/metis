@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use tokio::sync::RwLock;
 
 use crate::config::Config;
-use crate::infrastructure::Database;
+use crate::infrastructure::{Database, NatsPublisher, RedisClient};
 use crate::repositories::{
     RepositoryError, SqlxLogRepository, SqlxRunRepository, SqlxTaskRepository,
 };
@@ -34,8 +34,17 @@ impl AppState {
         let task_repo = Arc::new(SqlxTaskRepository::new(pool.clone()));
         let log_repo = Arc::new(SqlxLogRepository::new(pool));
 
+        let nats = NatsPublisher::new(&config.nats_url)
+            .await
+            .map_err(|e| RepositoryError::Connection(e.to_string()))?;
+        let redis = RedisClient::new(&config.redis_url)
+            .await
+            .map_err(|e| RepositoryError::Connection(e.to_string()))?;
+
+        let run_service = RunService::with_messaging(run_repo, Arc::new(nats), Arc::new(redis));
+
         let services = Services {
-            runs: RunService::new(run_repo),
+            runs: run_service,
             tasks: TaskService::new(task_repo),
             logs: LogService::new(log_repo),
         };

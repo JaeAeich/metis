@@ -15,6 +15,18 @@ pub enum ServiceError {
     #[error("Invalid filter: {0}")]
     InvalidFilter(String),
 
+    #[error("Invalid state for operation: {0}")]
+    InvalidState(String),
+
+    #[error("Messaging error: {0}")]
+    Messaging(String),
+
+    #[error("Validation failed: {0}")]
+    Validation(common::errors::ValidationError),
+
+    #[error("Engine config not found for {0}/{1}")]
+    EngineConfigNotFound(String, String),
+
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 }

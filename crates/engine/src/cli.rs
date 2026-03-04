@@ -4,8 +4,7 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use common::configs::{
-    DatabaseConfig, EngineConfig, FullEngineConfig, NatsConfig, RunConfigTemplate, RunsConfig,
-    WorkdirConfig,
+    EngineConfig, FullEngineConfig, RunConfigTemplate, RunsConfig, WorkdirConfig,
 };
 use common::models::RunRequest;
 use common::validators::EngineRequestValidator;
@@ -13,6 +12,7 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::clients::Db;
+use crate::config::ServerConfig;
 use crate::engine::Engine;
 use crate::error::{EngineError, EngineResult};
 use crate::runtime::EngineRuntime;
@@ -56,16 +56,8 @@ enum Commands {
     /// Start the engine server
     Server {
         /// Engine configuration file
-        #[arg(long, value_name = "FILE")]
-        engine_config: Option<PathBuf>,
-
-        /// NATS server URL
-        #[arg(long, default_value = "nats://localhost:4222")]
-        nats_url: String,
-
-        /// NATS notification subject
-        #[arg(long, default_value = "metis.notification")]
-        notification_subject: String,
+        #[arg(long, value_name = "FILE", default_value = "/etc/metis/engine-config.yaml")]
+        engine_config: PathBuf,
     },
 }
 
@@ -81,9 +73,8 @@ pub async fn run_cli<E: Engine + 'static>(engine: E) -> EngineResult<()> {
         Commands::Run { request, file, engine_config, dry_run } => {
             run_single_workflow(engine, request, file, engine_config, dry_run).await?;
         },
-        Commands::Server { engine_config, nats_url, notification_subject } => {
-            let nats_config = NatsConfig { url: nats_url, notification_subject };
-            run_server(engine, engine_config, nats_config).await?;
+        Commands::Server { engine_config } => {
+            run_server(engine, engine_config).await?;
         },
     }
 
@@ -250,15 +241,16 @@ async fn run_single_workflow<E: Engine + 'static>(
 
     info!("WES request validation passed");
 
-    let db = match DatabaseConfig::from_env() {
-        Some(cfg) => match Db::new(&cfg).await {
+    let server_cfg = ServerConfig::from_env().unwrap_or_default();
+    let db: Option<Arc<Db>> = match &server_cfg.database_url {
+        Some(url) if !url.is_empty() => match Db::new(url).await {
             Ok(db) => Some(Arc::new(db)),
             Err(e) => {
                 warn!(error = %e, "Database unavailable — run persistence disabled");
                 None
             },
         },
-        None => {
+        _ => {
             warn!("DATABASE_URL not set — run persistence disabled");
             None
         },
@@ -295,26 +287,25 @@ async fn run_single_workflow<E: Engine + 'static>(
 
 async fn run_server<E: Engine + 'static>(
     engine: E,
-    engine_config_path: Option<PathBuf>,
-    nats_config: NatsConfig,
+    engine_config_path: PathBuf,
 ) -> EngineResult<()> {
     info!("Starting engine server");
 
-    let config = load_engine_config(engine_config_path).await?;
+    let config = load_engine_config(Some(engine_config_path)).await?;
+    let server_config = ServerConfig::from_env().map_err(|e| {
+        EngineError::Config(format!("Failed to load server config from env: {}", e))
+    })?;
 
     info!(
         engine = %config.engine.name,
         version = %config.engine.version,
-        nats_url = %nats_config.url,
-        notification_subject = %nats_config.notification_subject,
+        nats_url = ?server_config.nats_url,
+        redis_url = ?server_config.redis_url,
+        database_url = ?server_config.database_url,
         "Engine server configuration loaded"
     );
 
-    let valkey_config = common::configs::ValkeyConfig::from_env();
-    let db_config = common::configs::DatabaseConfig::from_env();
-    if let Err(e) =
-        crate::server::bootstrap(engine, config, nats_config, valkey_config, db_config).await
-    {
+    if let Err(e) = crate::server::bootstrap(engine, config, server_config).await {
         error!("Server failed: {}", e);
         return Err(EngineError::Execution(format!("Server failed: {}", e)));
     }

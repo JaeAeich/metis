@@ -1,0 +1,173 @@
+version: "1.0.0"
+engine:
+  name: Nextflow
+  version: "25.10.4"
+  backend: local
+
+  workflowTypes:
+    - NFL
+  workflowTypeVersions:
+    - DSL2
+
+  # Template variables: {workflow_path}, {workflow_params}, {engine_params}, {workdir}, {run_id}, {user_id}
+  commandTemplate: "nextflow run {workflow_path} {engine_params} {workflow_params}"
+
+  workflowParams:
+    style:
+      method: inline
+      prefix: "--"
+      separator: " "
+      keyValueFormat: "{key}={value}"
+
+  engineParams:
+    unknownParamsBehavior: reject
+    validatedParams:
+      # Execution profile - most common param
+      - names: ["profile", "-profile", "profiles"]
+        cliFlag: "-profile"
+        type: list
+        default: ["docker"]
+        strictDefault: false
+        required: false
+        listSeparator: ","
+        validate:
+          - type: enum
+            allowed: ["docker", "local", "k8s", "aws", "gcp", "azure", "slurm", "lsf", "uge"]
+            message: "Invalid profile"
+
+      # Resume previous run
+      - names: ["resume", "-resume"]
+        cliFlag: "-resume"
+        type: bool
+        default: false
+        booleanStyle: flag
+
+      # Working directory for intermediate files
+      - names: ["work-dir", "-work-dir", "-w"]
+        cliFlag: "-work-dir"
+        type: string
+        required: false
+        validate:
+          - type: regex
+            pattern: "^/[a-zA-Z0-9/_.-]+$"
+            message: "Invalid work directory path"
+
+      # Resource limits
+      - names: ["max-cpus", "maxCpus"]
+        cliFlag: "--max-cpus"
+        type: int
+        validate:
+          - type: range
+            min: 1
+            max: 256
+
+      - names: ["max-memory", "maxMemory"]
+        cliFlag: "--max-memory"
+        type: string
+        default: "32GB"
+        validate:
+          - type: regex
+            pattern: "^[0-9]+(\\.[0-9]+)?(KB|MB|GB|TB)$"
+            message: "Memory must be like 16GB, 1.5TB"
+
+      - names: ["max-disk", "maxDisk"]
+        cliFlag: "--max-disk"
+        type: string
+        validate:
+          - type: regex
+            pattern: "^[0-9]+(\\.[0-9]+)?(KB|MB|GB|TB)$"
+
+      # Output directory
+      - names: ["output-dir", "outdir"]
+        cliFlag: "--outdir"
+        type: string
+        default: "{workdir}/outputs"
+        validate:
+          - type: regex
+            pattern: "^/[a-zA-Z0-9/_.-]+$"
+
+      # Additional config file
+      - names: ["config", "-c"]
+        cliFlag: "-c"
+        type: string
+        validate:
+          - type: file_exists
+          - type: file_extension
+            allowed: [".config", ".cfg", ".conf", ".nf"]
+
+      # Tower integration (sensitive token)
+      - names: ["tower-token", "access-token", "token"]
+        cliFlag: "-with-tower"
+        type: string
+        sensitive: true
+        envVar: "TOWER_ACCESS_TOKEN"
+        validate:
+          - type: regex
+            pattern: "^[a-zA-Z0-9_.-]{10,}$"
+            message: "Invalid token format"
+
+      # Revision/tag for versioned pipelines
+      - names: ["revision", "-r", "tag"]
+        cliFlag: "-r"
+        type: string
+
+      # Latest version
+      - names: ["latest"]
+        cliFlag: "-latest"
+        type: bool
+        booleanStyle: flag
+
+      # Cache settings
+      - names: ["cache"]
+        cliFlag: "-cache"
+        type: string
+        validate:
+          - type: enum
+            allowed: ["true", "false", "deep", "lenient"]
+
+  deniedParams:
+    # Block dangerous Docker/container flags
+    - pattern: "-with-docker"
+      type: exact
+      reason: "Use profile parameter instead"
+
+    - pattern: "-with-singularity"
+      type: exact
+      reason: "Use profile parameter instead"
+
+    # Block system modifications
+    - pattern: "--privileged"
+      type: exact
+      reason: "Privileged mode not allowed"
+
+    - pattern: "--volume"
+      type: exact
+      reason: "Volume mounts managed by WES"
+
+    - pattern: "-v"
+      type: exact
+      reason: "Volume mounts managed by WES"
+
+    # Block network/host access
+    - pattern: "--net"
+      type: exact
+      reason: "Network configuration not allowed"
+
+    - pattern: "--host"
+      type: exact
+      reason: "Host configuration not allowed"
+
+    # Block command injection patterns
+    - pattern: ".*[;&|`$()].*"
+      type: regex
+      reason: "Shell metacharacters not allowed"
+
+runs:
+  workdir:
+    base: "/var/wes/runs"
+    pattern: "{user_id}/{run_id}"
+    subdirs:
+      logs: "logs"
+      outputs: "outputs"
+      work: "work"
+      tmp: "tmp"

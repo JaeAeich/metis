@@ -480,19 +480,14 @@ pub struct RunRequest {
     pub workflow_engine_parameters: Option<std::collections::HashMap<String, String>>,
 
     /// The workflow engine, must be one supported by this WES instance.
-    /// Required if workflow_engine_version is provided.
-    #[serde(rename = "workflow_engine", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "workflow_engine")]
     #[schema(example = "cwltool")]
-    pub workflow_engine: Option<String>,
+    pub workflow_engine: String,
 
     /// The workflow engine version, must be one supported by this WES instance.
-    /// If workflow_engine is provided, but workflow_engine_version is not,
-    /// servers can make no assumptions with regard to the engine version
-    /// the WES instance uses to process the request if that WES instance
-    /// supports multiple versions of the requested engine.
-    #[serde(rename = "workflow_engine_version", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "workflow_engine_version")]
     #[schema(example = "3.1.20240112164112")]
-    pub workflow_engine_version: Option<String>,
+    pub workflow_engine_version: String,
 
     /// **REQUIRED** The workflow CWL or WDL document. When
     /// `workflow_attachments` is used to attach files, the `workflow_url`
@@ -922,17 +917,12 @@ pub struct ValidatedRunRequest {
     pub workflow_engine_parameters: Option<Vec<ValidatedParam>>,
 
     /// The workflow engine, must be one supported by this WES instance.
-    /// Required if workflow_engine_version is provided.
-    #[serde(rename = "workflow_engine", skip_serializing_if = "Option::is_none")]
-    pub workflow_engine: Option<String>,
+    #[serde(rename = "workflow_engine")]
+    pub workflow_engine: String,
 
     /// The workflow engine version, must be one supported by this WES instance.
-    /// If workflow_engine is provided, but workflow_engine_version is not,
-    /// servers can make no assumptions with regard to the engine version
-    /// the WES instance uses to process the request if that WES instance
-    /// supports multiple versions of the requested engine.
-    #[serde(rename = "workflow_engine_version", skip_serializing_if = "Option::is_none")]
-    pub workflow_engine_version: Option<String>,
+    #[serde(rename = "workflow_engine_version")]
+    pub workflow_engine_version: String,
 
     /// **REQUIRED** The workflow CWL or WDL document. When
     /// `workflow_attachments` is used to attach files, the `workflow_url`
@@ -954,6 +944,7 @@ pub struct WorkflowFileInfo {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RunRequestMessage {
+    pub run_id: String,
     pub request: ValidatedRunRequest,
     pub user_id: String,
 }

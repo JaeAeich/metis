@@ -10,6 +10,7 @@
 pub mod cli;
 pub mod clients;
 pub mod command;
+pub mod config;
 pub mod context;
 pub mod dry_run;
 pub mod engine;
