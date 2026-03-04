@@ -67,6 +67,10 @@ impl Valkey {
         let cpu_usage = sys.global_cpu_usage();
         let used_ram = sys.total_memory() - sys.available_memory();
 
+        let config_key = format!(
+            "metis.engines.config.{}.{}",
+            self.engine_config.name, self.engine_config.version
+        );
         let base = format!(
             "metis.engines.{}.{}.{}",
             self.engine_config.name, self.engine_config.version, self.engine_config.id
@@ -76,7 +80,10 @@ impl Valkey {
 
         let mut conn = self.conn.lock().await;
         let mut pipe = redis::pipe();
-        pipe.cmd("SETEX")
+        pipe.cmd("EXPIRE")
+            .arg(&config_key)
+            .arg(self.ttl)
+            .cmd("SETEX")
             .arg(&cpu_key)
             .arg(self.ttl)
             .arg(cpu_usage)

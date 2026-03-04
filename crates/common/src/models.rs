@@ -143,15 +143,13 @@ pub struct ServiceInfo {
     #[serde(rename = "tags")]
     #[schema(example = json!({"environment": "production", "version": "1.0.0"}))]
     pub tags: std::collections::HashMap<String, String>,
+}
 
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub system: Option<SystemInfo>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub engines: Option<Vec<EngineSummary>>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub database: Option<DatabaseStats>,
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct Stats {
+    pub system: SystemInfo,
+    pub database: DatabaseStats,
+    pub engines: Vec<EngineInstance>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -164,12 +162,16 @@ pub struct SystemInfo {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct EngineSummary {
+pub struct EngineInstance {
     pub name: String,
     pub version: String,
+    pub id: String,
     pub workflow_types: Vec<String>,
     pub workflow_type_versions: Vec<String>,
     pub backend: String,
+    pub cpu_usage_percent: Option<f32>,
+    pub ram_used_mb: Option<u64>,
+    pub runs_count: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
