@@ -185,3 +185,28 @@ pub async fn cancel_run(
 
     Ok(Json(serde_json::json!({ "status": "cancel requested" })))
 }
+
+#[utoipa::path(
+    delete,
+    path = "/runs/{run_id}",
+    tag = "Runs",
+    params(
+        ("run_id" = String, Path, description = "Workflow run ID")
+    ),
+    responses(
+        (status = 200, description = "Run deleted", body = RunIdModel),
+        (status = 400, description = "Run cannot be deleted in current state"),
+        (status = 404, description = "Run not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn delete_run(
+    State(app): State<AppState>,
+    Path(run_id): Path<String>,
+) -> ApiResult<Json<RunIdModel>> {
+    let id = RunId::new(run_id);
+
+    app.services.runs.delete_run(&id).await?;
+
+    Ok(Json(RunIdModel { run_id: Some(id.into_inner()) }))
+}
