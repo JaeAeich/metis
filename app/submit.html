@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/public/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/public/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/public/apple-touch-icon.png">
+    <link rel="manifest" href="/public/site.webmanifest">
+    <title>Metis - Submit Run</title>
+    <link rel="stylesheet" href="/css/theme.css">
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <a href="/" class="back-link">← Back to Runs</a>
+        <h1 class="logo">Submit Run</h1>
+        <p class="subtitle">Launch a new workflow execution</p>
+      </header>
+
+      <!-- No-engines warning (hidden by default) -->
+      <div
+        id="no-engines-banner"
+        class="form-alert form-alert-error"
+        style="margin-bottom:1rem;"
+        hidden
+      >
+        No engines registered — contact your administrator.
+      </div>
+
+      <!-- Template quick-fill (populated dynamically) -->
+      <div class="template-area" id="template-area" hidden>
+        <div class="template-area-row">
+          <span class="tpl-label">Engine</span>
+          <div class="tpl-engine-chip-wrap">
+            <select id="workflow_engine_select" class="tpl-engine-chip"></select>
+            <div class="engine-info-tooltip" id="engine-info-tooltip" hidden>
+              <button type="button" class="engine-info-btn" aria-label="Engine parameters">
+                ⓘ
+              </button>
+              <div class="engine-info-popup" id="engine-info-popup" role="tooltip">
+                <div class="engine-info-popup-title" id="engine-info-popup-title"></div>
+                <div class="engine-info-popup-body" id="engine-info-popup-body"></div>
+              </div>
+            </div>
+          </div>
+          <div class="tpl-divider"></div>
+          <div class="template-cards" id="template-cards">
+            <!-- template cards populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <form id="submit-form" onsubmit="submitRun(event)" novalidate>
+        <div class="form-grid">
+          <!-- Left: workflow identity fields -->
+          <div>
+            <p class="form-section-title">Workflow</p>
+
+            <div class="field">
+              <label class="field-label" for="workflow_url">
+                Workflow URL <span class="field-required">*</span>
+              </label>
+              <input
+                id="workflow_url"
+                name="workflow_url"
+                type="text"
+                class="field-input"
+                placeholder="https://github.com/org/repo/workflow.nf"
+                autocomplete="off"
+                required
+              >
+              <span class="field-hint">URL to the workflow descriptor file</span>
+              <span class="field-error" id="workflow_url_err"></span>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label" for="workflow_type">
+                  Type <span class="field-required">*</span>
+                </label>
+                <select id="workflow_type" name="workflow_type" class="field-input" required>
+                  <option value="">Select…</option>
+                </select>
+                <span class="field-error" id="workflow_type_err"></span>
+              </div>
+              <div class="field">
+                <label class="field-label" for="workflow_type_version">
+                  Version <span class="field-required">*</span>
+                </label>
+                <select
+                  id="workflow_type_version"
+                  name="workflow_type_version"
+                  class="field-input"
+                  required
+                >
+                  <option value="">Select…</option>
+                </select>
+                <span class="field-error" id="workflow_type_version_err"></span>
+              </div>
+            </div>
+
+            <!-- Hidden inputs kept for form submission compatibility -->
+            <input type="hidden" id="workflow_engine" name="workflow_engine">
+            <input type="hidden" id="workflow_engine_version" name="workflow_engine_version">
+
+            <p class="form-section-title" style="margin-top:1.25rem;">Tags</p>
+
+            <div class="field">
+              <div class="editor-header">
+                <label class="field-label"
+                  ><span class="field-hint" style="font-weight:400;">key/value strings</span></label
+                >
+                <div class="editor-actions">
+                  <button type="button" class="editor-btn" onclick="formatEditor('tags')">
+                    Format
+                  </button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('tags')">
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div class="json-editor-wrap" id="tags-wrap">
+                <div
+                  id="tags"
+                  class="json-editor json-editor--sm"
+                  contenteditable="true"
+                  spellcheck="false"
+                >
+                  { }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: JSON editors -->
+          <div>
+            <p class="form-section-title">Parameters</p>
+
+            <div class="field">
+              <div class="editor-header">
+                <label class="field-label">Workflow Params</label>
+                <div class="editor-actions">
+                  <button type="button" class="editor-btn" onclick="formatEditor('wp')">
+                    Format
+                  </button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('wp')">
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div class="json-editor-wrap" id="wp-wrap">
+                <div id="wp" class="json-editor" contenteditable="true" spellcheck="false">{ }</div>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="editor-header">
+                <label class="field-label">Engine Parameters</label>
+                <div class="editor-actions">
+                  <button type="button" class="editor-btn" onclick="formatEditor('ep')">
+                    Format
+                  </button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('ep')">
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div class="json-editor-wrap" id="ep-wrap">
+                <div
+                  id="ep"
+                  class="json-editor json-editor--sm"
+                  contenteditable="true"
+                  spellcheck="false"
+                >
+                  { }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="form-error" class="form-alert form-alert-error"></div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="resetForm()">Reset</button>
+          <button type="submit" id="submit-btn" class="btn btn-primary">
+            <span id="submit-label">Submit Run</span>
+            <span id="submit-spinner" class="btn-spinner"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script src="/js/submit.js"></script>
+    <div id="toast-container" class="toast-container"></div>
+  </body>
+</html>

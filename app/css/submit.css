@@ -1,0 +1,305 @@
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-light);
+  margin-bottom: 0.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.required {
+  color: var(--custom-primary);
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+
+.field-hint-inline {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  font-weight: 400;
+}
+
+.field-input {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  outline: none;
+}
+
+.field-input:focus {
+  border-color: var(--custom-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--custom-primary) 15%, transparent);
+}
+
+.field-input.invalid {
+  border-color: var(--status-error);
+}
+
+.field-error {
+  font-size: 0.75rem;
+  color: var(--status-error);
+  min-height: 1em;
+}
+
+/* JSON editor */
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.editor-btn {
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-light);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.editor-btn:hover {
+  border-color: var(--custom-primary);
+  color: var(--custom-primary);
+}
+
+.json-editor-wrap {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  background: #0d1117;
+}
+
+.json-editor-wrap:focus-within {
+  border-color: var(--custom-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--custom-primary) 15%, transparent);
+}
+
+.json-editor-wrap.invalid {
+  border-color: var(--status-error);
+}
+
+.json-editor {
+  min-height: 160px;
+  padding: 0.75rem 1rem;
+  font-family: "SF Mono", Monaco, "Cascadia Code", "Fira Code", monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #c9d1d9;
+  white-space: pre-wrap;
+  word-break: break-all;
+  outline: none;
+  tab-size: 2;
+  caret-color: var(--custom-primary);
+}
+
+.json-editor--sm {
+  min-height: 80px;
+}
+
+/* Syntax highlighting applied via JS spans */
+.json-key {
+  color: #79c0ff;
+}
+.json-str {
+  color: #a5d6ff;
+}
+.json-num {
+  color: #f2cc60;
+}
+.json-bool {
+  color: #ff7b72;
+}
+.json-null {
+  color: #ff7b72;
+}
+.json-punct {
+  color: #8b949e;
+}
+
+/* Form bottom */
+
+.form-error {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--status-error) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-error) 30%, transparent);
+  color: var(--status-error);
+  font-size: 0.875rem;
+  display: none;
+}
+
+.form-error.visible {
+  display: block;
+}
+
+.form-actions {
+  margin-top: 1.75rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: 0.6rem 1.4rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--custom-primary);
+  color: white;
+  border-color: var(--custom-primary);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--custom-primary-dark);
+  border-color: var(--custom-primary-dark);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-secondary);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Success banner */
+.success-banner {
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--status-complete) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-complete) 30%, transparent);
+  color: var(--status-complete);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.success-banner a {
+  color: var(--status-complete);
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+/* Cancel button on run detail page */
+.btn-cancel {
+  background: transparent;
+  color: var(--status-error);
+  border: 1px solid var(--status-error);
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: var(--status-error);
+  color: white;
+}
+
+.btn-cancel:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
