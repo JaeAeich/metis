@@ -1,6 +1,7 @@
 const API_BASE = "/api";
 let currentRunId = null;
 let logsEventSource = null;
+let statusEventSource = null;
 let logsPaused = false;
 let _nextPageToken = null;
 
@@ -313,6 +314,8 @@ async function _loadRun(runId) {
     const run = await runRes.json();
     renderRunHeader(run);
     renderOverview(run);
+    renderTasks(tasks);
+    connectStatusStream();
   } catch (err) {
     document.getElementById("overview-content").innerHTML =
       `<div class="empty-state">Error: ${escapeHtml(err.message)}</div>`;
@@ -565,6 +568,35 @@ function connectLogs() {
   logsEventSource.onerror = () => {
     console.log("SSE connection lost, reconnecting...");
     setTimeout(connectLogs, 3000);
+  };
+}
+
+function connectStatusStream() {
+  if (statusEventSource) statusEventSource.close();
+  const url = `${API_BASE}/runs/${encodeURIComponent(currentRunId)}/status/stream`;
+  statusEventSource = new EventSource(url);
+
+  statusEventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      const badge = document.querySelector(".status-badge");
+      if (badge) {
+        badge.className = `status-badge ${getStatusClass(data.state)}`;
+        badge.textContent = data.state;
+      }
+
+      if (DELETABLE_STATES.has(data.state)) {
+        statusEventSource.close();
+        _loadRun(currentRunId);
+      }
+    } catch (e) {
+      console.error("Failed to parse status update:", e);
+    }
+  };
+
+  statusEventSource.onerror = () => {
+    console.log("Status SSE connection lost, reconnecting...");
+    setTimeout(connectStatusStream, 3000);
   };
 }
 
