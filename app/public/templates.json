@@ -1,0 +1,13 @@
+{
+  "nextflow": [
+    {
+      "label": "Hello World",
+      "description": "Minimal Nextflow pipeline — prints 'Hello World'",
+      "workflow_url": "https://github.com/nextflow-io/hello",
+      "workflow_type": "NFL",
+      "workflow_type_version": "DSL2",
+      "workflow_params": {},
+      "tags": { "project": "hello-world" }
+    }
+  ]
+}
