@@ -689,23 +689,52 @@ body {
   gap: 0.75rem;
 }
 
-.success-banner {
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toast {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.85rem 1.1rem;
   border-radius: 6px;
-  background: rgba(34, 197, 94, 0.08);
-  color: var(--status-complete);
+  background: var(--bg);
   border: 1px solid rgba(34, 197, 94, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   font-size: 0.875rem;
-  margin-bottom: 1.25rem;
+  animation: toast-in 0.3s ease;
+  min-width: 320px;
+  transition: opacity 0.3s ease;
 }
-.success-banner a {
+
+.toast.toast--success {
+  color: var(--status-complete);
+}
+
+.toast a {
   color: var(--status-complete);
   font-weight: 600;
   white-space: nowrap;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Engine info tooltip */

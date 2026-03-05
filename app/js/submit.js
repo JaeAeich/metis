@@ -502,13 +502,21 @@ async function _submitRun(e) {
 
 function showSuccess(runId) {
   const safe = runId.replace(/[^a-zA-Z0-9_-]/g, "");
-  const wrap = document.getElementById("success-banner-wrap");
-  wrap.innerHTML = `
-    <div class="success-banner">
-      <span>Run submitted — ID: <code>${safe}</code></span>
-      <a href="/run.html?run_id=${encodeURIComponent(runId)}">View run →</a>
-    </div>`;
-  wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const container = document.getElementById("toast-container");
+
+  const toast = document.createElement("div");
+  toast.className = "toast toast--success";
+  toast.innerHTML = `
+    <span>Run submitted — ID: <code>${safe}</code></span>
+    <a href="/run.html?run_id=${encodeURIComponent(runId)}">View run →</a>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 300);
+  }, 8000);
 }
 
 function _resetForm() {
@@ -528,7 +536,6 @@ function _resetForm() {
     clearEditorError(id);
   });
   clearFormError();
-  document.getElementById("success-banner-wrap").innerHTML = "";
 }
 
 // ── Event wiring ───────────────────────────────────────────────────────────

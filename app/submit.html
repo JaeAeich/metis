@@ -19,7 +19,12 @@
       </header>
 
       <!-- No-engines warning (hidden by default) -->
-      <div id="no-engines-banner" class="form-alert form-alert-error" style="margin-bottom:1rem;" hidden>
+      <div
+        id="no-engines-banner"
+        class="form-alert form-alert-error"
+        style="margin-bottom:1rem;"
+        hidden
+      >
         No engines registered — contact your administrator.
       </div>
 
@@ -30,7 +35,9 @@
           <div class="tpl-engine-chip-wrap">
             <select id="workflow_engine_select" class="tpl-engine-chip"></select>
             <div class="engine-info-tooltip" id="engine-info-tooltip" hidden>
-              <button type="button" class="engine-info-btn" aria-label="Engine parameters">ⓘ</button>
+              <button type="button" class="engine-info-btn" aria-label="Engine parameters">
+                ⓘ
+              </button>
               <div class="engine-info-popup" id="engine-info-popup" role="tooltip">
                 <div class="engine-info-popup-title" id="engine-info-popup-title"></div>
                 <div class="engine-info-popup-body" id="engine-info-popup-body"></div>
@@ -44,11 +51,8 @@
         </div>
       </div>
 
-      <div id="success-banner-wrap"></div>
-
       <form id="submit-form" onsubmit="submitRun(event)" novalidate>
         <div class="form-grid">
-
           <!-- Left: workflow identity fields -->
           <div>
             <p class="form-section-title">Workflow</p>
@@ -84,7 +88,12 @@
                 <label class="field-label" for="workflow_type_version">
                   Version <span class="field-required">*</span>
                 </label>
-                <select id="workflow_type_version" name="workflow_type_version" class="field-input" required>
+                <select
+                  id="workflow_type_version"
+                  name="workflow_type_version"
+                  class="field-input"
+                  required
+                >
                   <option value="">Select…</option>
                 </select>
                 <span class="field-error" id="workflow_type_version_err"></span>
@@ -99,16 +108,27 @@
 
             <div class="field">
               <div class="editor-header">
-                <label class="field-label"><span class="field-hint" style="font-weight:400;">key/value strings</span></label>
+                <label class="field-label"
+                  ><span class="field-hint" style="font-weight:400;">key/value strings</span></label
+                >
                 <div class="editor-actions">
-                  <button type="button" class="editor-btn" onclick="formatEditor('tags')">Format</button>
-                  <button type="button" class="editor-btn" onclick="clearEditor('tags')">Clear</button>
+                  <button type="button" class="editor-btn" onclick="formatEditor('tags')">
+                    Format
+                  </button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('tags')">
+                    Clear
+                  </button>
                 </div>
               </div>
               <div class="json-editor-wrap" id="tags-wrap">
-                <div id="tags" class="json-editor json-editor--sm" contenteditable="true" spellcheck="false">{
-
-}</div>
+                <div
+                  id="tags"
+                  class="json-editor json-editor--sm"
+                  contenteditable="true"
+                  spellcheck="false"
+                >
+                  { }
+                </div>
               </div>
             </div>
           </div>
@@ -121,14 +141,16 @@
               <div class="editor-header">
                 <label class="field-label">Workflow Params</label>
                 <div class="editor-actions">
-                  <button type="button" class="editor-btn" onclick="formatEditor('wp')">Format</button>
-                  <button type="button" class="editor-btn" onclick="clearEditor('wp')">Clear</button>
+                  <button type="button" class="editor-btn" onclick="formatEditor('wp')">
+                    Format
+                  </button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('wp')">
+                    Clear
+                  </button>
                 </div>
               </div>
               <div class="json-editor-wrap" id="wp-wrap">
-                <div id="wp" class="json-editor" contenteditable="true" spellcheck="false">{
-
-}</div>
+                <div id="wp" class="json-editor" contenteditable="true" spellcheck="false">{ }</div>
               </div>
             </div>
 
@@ -136,18 +158,26 @@
               <div class="editor-header">
                 <label class="field-label">Engine Parameters</label>
                 <div class="editor-actions">
-                  <button type="button" class="editor-btn" onclick="formatEditor('ep')">Format</button>
-                  <button type="button" class="editor-btn" onclick="clearEditor('ep')">Clear</button>
+                  <button type="button" class="editor-btn" onclick="formatEditor('ep')">
+                    Format
+                  </button>
+                  <button type="button" class="editor-btn" onclick="clearEditor('ep')">
+                    Clear
+                  </button>
                 </div>
               </div>
               <div class="json-editor-wrap" id="ep-wrap">
-                <div id="ep" class="json-editor json-editor--sm" contenteditable="true" spellcheck="false">{
-
-}</div>
+                <div
+                  id="ep"
+                  class="json-editor json-editor--sm"
+                  contenteditable="true"
+                  spellcheck="false"
+                >
+                  { }
+                </div>
               </div>
             </div>
           </div>
-
         </div>
 
         <div id="form-error" class="form-alert form-alert-error"></div>
@@ -163,5 +193,6 @@
     </div>
 
     <script src="/js/submit.js"></script>
+    <div id="toast-container" class="toast-container"></div>
   </body>
 </html>
