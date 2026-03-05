@@ -570,7 +570,7 @@ function connectLogs() {
   };
 }
 
-function connectStatusStream() {
+function connectStatusStream(retries = 0) {
   if (statusEventSource) statusEventSource.close();
   const url = `${API_BASE}/runs/${encodeURIComponent(currentRunId)}/status/stream`;
   statusEventSource = new EventSource(url);
@@ -580,7 +580,11 @@ function connectStatusStream() {
       const data = JSON.parse(event.data);
       const badge = document.getElementById("run-state-badge");
       if (badge) {
-        badge.className = `status-badge ${getStatusClass(data.state)}`;
+        badge.classList.forEach((cls) => {
+          if (cls !== "status-badge" && cls.startsWith("status-")) badge.classList.remove(cls);
+        });
+        const sc = getStatusClass(data.state);
+        if (sc) badge.classList.add(sc);
         badge.textContent = data.state;
       }
 
@@ -603,10 +607,17 @@ function connectStatusStream() {
 
   statusEventSource.onerror = () => {
     if (!statusEventSource || statusEventSource.readyState === EventSource.CLOSED) return;
-    console.log("Status SSE connection lost, reconnecting...");
     statusEventSource.close();
     statusEventSource = null;
-    setTimeout(connectStatusStream, 3000);
+    if (retries >= 5) {
+      console.warn("Status SSE max retries reached, giving up.");
+      return;
+    }
+    const delay = Math.min(1000 * 2 ** retries, 30_000);
+    console.log(
+      `Status SSE connection lost, reconnecting in ${delay}ms (attempt ${retries + 1})...`
+    );
+    setTimeout(() => connectStatusStream(retries + 1), delay);
   };
 }
 

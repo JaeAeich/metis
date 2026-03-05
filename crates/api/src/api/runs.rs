@@ -155,10 +155,13 @@ pub async fn stream_run_status(
 
     tokio::spawn(async move {
         let mut last_state: Option<RunState> = None;
+        let poll_interval_ms: u64 = 1_000;
+        let mut error_backoff_ms: u64 = poll_interval_ms;
 
         loop {
             match app.services.runs.find_by_id(&id).await {
                 Ok(Some(run)) => {
+                    error_backoff_ms = poll_interval_ms;
                     let current_state = run.state;
 
                     if last_state != Some(current_state) {
@@ -194,10 +197,11 @@ pub async fn stream_run_status(
                 },
                 Err(e) => {
                     tracing::error!("Error fetching run status: {}", e);
+                    error_backoff_ms = error_backoff_ms.saturating_mul(2).min(30_000);
                 },
             }
 
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(error_backoff_ms)).await;
         }
     });
 
