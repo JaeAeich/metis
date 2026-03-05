@@ -21,6 +21,7 @@ pub mod runtime;
 pub mod server;
 pub mod workdir;
 
+pub use config::load_engine_config;
 pub use engine::Engine;
 pub use error::{EngineError, EngineResult};
 pub use execution::{ExecutionOutput, ProcessExecutor};
