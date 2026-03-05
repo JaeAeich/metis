@@ -4,6 +4,14 @@ let logsEventSource = null;
 let logsPaused = false;
 let _nextPageToken = null;
 
+const paginationState = {
+  currentPage: 1,
+  totalPages: 1,
+  pageSize: 20,
+  pageTokens: { 1: null },
+  isLoading: false,
+};
+
 const CANCELABLE_STATES = new Set(["QUEUED", "INITIALIZING", "RUNNING", "PAUSED"]);
 const DELETABLE_STATES = new Set([
   "COMPLETE",
@@ -58,6 +66,26 @@ function truncate(str, maxLen = 40) {
   return `<span title="${escapeAttr(str)}" style="cursor:help;display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;">${escapeHtml(str.substring(0, maxLen))}…</span>`;
 }
 
+function calculatePageSize() {
+  const vh = window.innerHeight;
+  const headerHeight = 180;
+  const paginationHeight = 80;
+  const tableHeaderHeight = 50;
+  const rowHeight = 52;
+  const buffer = 20;
+  const available = vh - headerHeight - paginationHeight - tableHeaderHeight - buffer;
+  const rows = Math.floor(available / rowHeight);
+  return Math.max(5, Math.min(30, rows));
+}
+
+function debounce(fn, delay) {
+  let timeoutId;
+  return function (...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
 // ── Runs list ─────────────────────────────────────────────────────────────
 
 function filterRuns() {
@@ -65,6 +93,44 @@ function filterRuns() {
   document.querySelectorAll("#runs-body tr").forEach((row) => {
     row.style.display = !state || row.dataset.state === state ? "" : "none";
   });
+}
+
+async function loadRunsPage(pageNum = 1) {
+  if (paginationState.isLoading) return;
+
+  paginationState.isLoading = true;
+  const tbody = document.getElementById("runs-body");
+  tbody.innerHTML = '<tr><td colspan="5" class="loading">Loading...</td></tr>';
+
+  try {
+    const pageSize = paginationState.pageSize;
+    const pageToken = paginationState.pageTokens[pageNum] || null;
+
+    let url = `${API_BASE}/runs?page_size=${pageSize}`;
+    if (pageToken) {
+      url += `&page_token=${encodeURIComponent(pageToken)}`;
+    }
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch runs: ${res.status}`);
+
+    const data = await res.json();
+
+    if (data.next_page_token) {
+      paginationState.pageTokens[pageNum + 1] = data.next_page_token;
+      paginationState.totalPages = Math.max(paginationState.totalPages, pageNum + 1);
+    } else {
+      paginationState.totalPages = pageNum;
+    }
+
+    paginationState.currentPage = pageNum;
+    renderRunsList(data);
+    renderPagination();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error: ${escapeHtml(err.message)}</td></tr>`;
+  } finally {
+    paginationState.isLoading = false;
+  }
 }
 
 function renderRunsList(data) {
@@ -111,6 +177,50 @@ function renderRunsList(data) {
   filterRuns();
 }
 
+function renderPagination() {
+  const container = document.getElementById("pagination");
+  const { currentPage, totalPages } = paginationState;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '<span class="pagination-info">Page 1 of 1</span>';
+    return;
+  }
+
+  const pages = generatePageNumbers(currentPage, totalPages);
+
+  let html = `<button onclick="loadRunsPage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>Previous</button>`;
+
+  pages.forEach((page) => {
+    if (page === "...") {
+      html += '<span class="pagination-ellipsis">...</span>';
+    } else {
+      html += `<button class="${page === currentPage ? "active" : ""}" onclick="loadRunsPage(${page})">${page}</button>`;
+    }
+  });
+
+  html += `<button onclick="loadRunsPage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next</button>`;
+
+  html += `<span class="pagination-info">Page ${currentPage} of ${totalPages}</span>`;
+
+  container.innerHTML = html;
+}
+
+function generatePageNumbers(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  if (current <= 3) {
+    return [1, 2, 3, 4, "...", total];
+  }
+
+  if (current >= total - 2) {
+    return [1, "...", total - 3, total - 2, total - 1, total];
+  }
+
+  return [1, "...", current - 1, current, current + 1, "...", total];
+}
+
 async function _cancelRunById(runId, btn) {
   btn.disabled = true;
   btn.textContent = "…";
@@ -126,7 +236,7 @@ async function _cancelRunById(runId, btn) {
       return;
     }
     btn.textContent = "Canceled";
-    setTimeout(() => htmx.trigger("#runs-body", "load"), 800);
+    setTimeout(() => loadRunsPage(paginationState.currentPage), 800);
   } catch (err) {
     alert(`Cancel failed: ${err.message}`);
     btn.disabled = false;
@@ -371,17 +481,27 @@ document.getElementById("log-stream-filter")?.addEventListener("change", () => {
   connectLogs();
 });
 
-// ── htmx hook ─────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  if (document.getElementById("runs-body")) {
+    paginationState.pageSize = calculatePageSize();
+    loadRunsPage(1);
 
-document.body.addEventListener("htmx:beforeSwap", (evt) => {
-  if (evt.detail.target.id === "runs-body") {
-    try {
-      const data = JSON.parse(evt.detail.xhr.responseText);
-      evt.detail.shouldSwap = false;
-      renderRunsList(data);
-    } catch (e) {
-      console.error("Failed to parse runs response:", e);
-    }
+    const handleResize = debounce(() => {
+      const newSize = calculatePageSize();
+      if (newSize !== paginationState.pageSize) {
+        paginationState.pageSize = newSize;
+        paginationState.pageTokens = { 1: null };
+        loadRunsPage(1);
+      }
+    }, 250);
+
+    window.addEventListener("resize", handleResize);
+
+    setInterval(() => {
+      if (!paginationState.isLoading) {
+        loadRunsPage(paginationState.currentPage);
+      }
+    }, 10000);
   }
 });
 
@@ -394,3 +514,4 @@ window.deleteRun = _deleteRun;
 window.deleteRunById = _deleteRunById;
 window.showTab = _showTab;
 window.toggleLogs = _toggleLogs;
+window.loadRunsPage = loadRunsPage;
