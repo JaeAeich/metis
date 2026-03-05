@@ -67,12 +67,10 @@ pub async fn get_run_log(
 ) -> ApiResult<Json<RunLog>> {
     let id = RunId::new(run_id);
 
-    let run = app
-        .services
-        .runs
-        .find_by_id(&id)
-        .await?
-        .ok_or_else(|| ApiError::NotFound(format!("Run not found: {}", id)))?;
+    let (run, run_log) =
+        tokio::try_join!(app.services.runs.find_by_id(&id), app.services.runs.find_run_log(&id),)?;
+
+    let run = run.ok_or_else(|| ApiError::NotFound(format!("Run not found: {}", id)))?;
 
     let task_logs_url = format!("/runs/{}/tasks", run.id);
 
@@ -92,7 +90,7 @@ pub async fn get_run_log(
             workflow_url: run.workflow_url,
         })),
         state: Some(run.state),
-        run_log: None,
+        run_log: run_log.map(Box::new),
         task_logs_url: Some(task_logs_url),
         outputs: None,
     }))

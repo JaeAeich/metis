@@ -31,6 +31,7 @@ pub struct ExecutionContext {
     pub workdir: String,
     pub subdirs: HashMap<String, String>,
     pub started_at: DateTime<Utc>,
+    pub command: Option<String>,
 }
 
 pub struct EngineRuntime {
@@ -278,6 +279,7 @@ impl EngineRuntime {
             workdir: base_context.workdir.clone(),
             subdirs: base_context.subdirs.clone(),
             started_at,
+            command: None,
         };
 
         let span = tracing::info_span!(
@@ -332,6 +334,9 @@ impl EngineRuntime {
             workdir = %command_info.workdir,
             "Built execution command"
         );
+
+        let mut ctx = ctx;
+        ctx.command = Some(command_info.redacted_command.clone());
 
         // DRY RUN MODE: Print command and exit
         if self.dry_run {
@@ -580,7 +585,7 @@ impl EngineRuntime {
     ) -> Result<common::models::Log, EngineError> {
         Ok(common::models::Log {
             name: Some(format!("run-{}", ctx.run_id)),
-            cmd: None,
+            cmd: ctx.command.as_ref().map(|c| vec![c.clone()]),
             start_time: Some(ctx.started_at.to_rfc3339()),
             end_time: Some(Utc::now().to_rfc3339()),
             stdout: None,

@@ -103,6 +103,7 @@ services:
     volumes:
       - ./deployment/configs/engine-config.yaml:/etc/metis/engine-config.yaml:ro
       - ./configs/scm:/root/.nextflow/scm:ro
+      - ./workflows:/root/workflows
     command: "metis-engine-generic server --engine-config /etc/metis/engine-config.yaml"
   metis-ui:
     build:

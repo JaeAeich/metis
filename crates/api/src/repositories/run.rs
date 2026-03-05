@@ -32,6 +32,7 @@ pub trait RunRepository: Send + Sync {
     async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>>;
     async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()>;
     async fn soft_delete(&self, id: &RunId) -> RepositoryResult<bool>;
+    async fn find_run_log(&self, run_id: &RunId) -> RepositoryResult<Option<common::models::Log>>;
 }
 
 pub struct SqlxRunRepository {
@@ -48,15 +49,11 @@ impl SqlxRunRepository {
 impl RunRepository for SqlxRunRepository {
     async fn find_by_id(&self, id: &RunId) -> RepositoryResult<Option<Run>> {
         let row = sqlx::query(
-            r#"
-            SELECT
-                run_id, user_id, state, workflow_type, workflow_type_version,
-                workflow_url, workflow_engine, workflow_engine_version,
-                workflow_params, workflow_engine_parameters, tags,
-                start_time, end_time, created_at, deleted_at
-            FROM runs
-            WHERE run_id = $1 AND deleted_at IS NULL
-            "#,
+            "SELECT run_id, user_id, state, workflow_type, workflow_type_version, \
+            workflow_url, workflow_engine, workflow_engine_version, \
+            workflow_params, workflow_engine_parameters, tags, \
+            start_time, end_time, created_at, deleted_at FROM runs \
+            WHERE run_id = $1 AND deleted_at IS NULL",
         )
         .bind(id.as_str())
         .fetch_optional(&self.pool)
@@ -252,6 +249,32 @@ impl RunRepository for SqlxRunRepository {
         .execute(&self.pool)
         .await?;
         Ok(result.rows_affected() > 0)
+    }
+
+    async fn find_run_log(&self, run_id: &RunId) -> RepositoryResult<Option<common::models::Log>> {
+        let row = sqlx::query(
+            "SELECT name, cmd, start_time::text as start_time, end_time::text as end_time, \
+            stdout, stderr, exit_code, system_logs \
+            FROM run_logs WHERE run_id = $1 ORDER BY id DESC LIMIT 1",
+        )
+        .bind(run_id.as_str())
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|r| common::models::Log {
+            name: r.get("name"),
+            cmd: r
+                .get::<Option<serde_json::Value>, _>("cmd")
+                .and_then(|v| serde_json::from_value(v).ok()),
+            start_time: r.get("start_time"),
+            end_time: r.get("end_time"),
+            stdout: r.get("stdout"),
+            stderr: r.get("stderr"),
+            exit_code: r.get("exit_code"),
+            system_logs: r
+                .get::<Option<serde_json::Value>, _>("system_logs")
+                .and_then(|v| serde_json::from_value(v).ok()),
+        }))
     }
 }
 

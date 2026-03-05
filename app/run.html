@@ -14,11 +14,13 @@
     <div class="container">
       <header class="header">
         <a href="/" class="back-link">← Back to Runs</a>
-        <h1 class="logo">Run Detail</h1>
-        <p class="subtitle" id="run-id-display"></p>
+        <div class="run-detail-title-row">
+          <h1 class="logo">Run Detail</h1>
+          <span id="run-state-badge"></span>
+          <div class="run-detail-actions" id="run-detail-actions"></div>
+        </div>
+        <p class="subtitle run-id" id="run-id-display"></p>
       </header>
-
-      <div id="run-header" class="run-header"></div>
 
       <div class="tabs">
         <button type="button" class="tab-btn active" onclick="showTab('overview', this)">

@@ -28,6 +28,10 @@ impl RunService {
         self.repo.find_by_id(id).await.map_err(Into::into)
     }
 
+    pub async fn find_run_log(&self, id: &RunId) -> ServiceResult<Option<common::models::Log>> {
+        self.repo.find_run_log(id).await.map_err(Into::into)
+    }
+
     pub async fn find_all(
         &self,
         filter: RunFilter,
