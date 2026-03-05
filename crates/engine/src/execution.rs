@@ -132,8 +132,8 @@ impl ProcessExecutor {
 
             signal::kill(pgid, Signal::SIGTERM).map_err(|e| {
                 EngineError::Execution(format!(
-                    "Failed to send SIGTERM to process group {}: {}",
-                    pid, e
+                    "Failed to send SIGTERM to process group {} (original pid {}): {}",
+                    pgid, pid, e
                 ))
             })?;
 
@@ -143,16 +143,16 @@ impl ProcessExecutor {
                 Ok(_) => {
                     signal::kill(pgid, Signal::SIGKILL).map_err(|e| {
                         EngineError::Execution(format!(
-                            "Failed to send SIGKILL to process group {}: {}",
-                            pid, e
+                            "Failed to send SIGKILL to process group {} (original pid {}): {}",
+                            pgid, pid, e
                         ))
                     })?;
                 },
                 Err(Errno::ESRCH) => {
-                    info!(pid = %pid, "Process group has already exited");
+                    info!(pgid = %pgid, pid = %pid, "Process group has already exited");
                 },
                 Err(e) => {
-                    warn!(pid = %pid, error = %e, "Failed to check process group status before SIGKILL");
+                    warn!(pgid = %pgid, pid = %pid, error = %e, "Failed to check process group status before SIGKILL");
                 },
             }
         }
