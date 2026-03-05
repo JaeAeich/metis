@@ -89,16 +89,6 @@ impl EngineRuntime {
                 "Registering engine in Valkey"
             );
             valkey.register().await?;
-
-            let valkey = Arc::clone(valkey);
-            tokio::spawn(async move {
-                loop {
-                    if let Err(e) = valkey.heartbeat().await {
-                        warn!(error = %e, "Failed to update engine heartbeat");
-                    }
-                    tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
-                }
-            });
         }
 
         let Some(nats) = &self.nats else {
@@ -162,6 +152,23 @@ impl EngineRuntime {
         let run_id = Uuid::parse_str(&run_message.run_id)
             .map_err(|e| EngineError::Generic(format!("Invalid run_id: {}", e)))?;
 
+        if let Some(db) = &self.db {
+            match db.get_run_state(&run_id.to_string()).await {
+                Ok(Some(common::models::State::Canceled)) => {
+                    info!(run_id = %run_id, "Run was canceled before engine picked it up, skipping");
+                    return Ok(());
+                },
+                Ok(Some(common::models::State::Canceling)) => {
+                    info!(run_id = %run_id, "Run is being canceled, skipping execution");
+                    return Ok(());
+                },
+                Err(e) => {
+                    warn!(run_id = %run_id, error = %e, "Failed to check run state before execution, proceeding");
+                },
+                _ => {},
+            }
+        }
+
         if let Some(valkey) = &self.valkey {
             valkey.add_run(&run_id.to_string()).await?;
         }
@@ -224,21 +231,8 @@ impl EngineRuntime {
     }
 
     fn parse_run_message(payload: &[u8]) -> EngineResult<RunRequestMessage> {
-        if let Ok(message) = serde_json::from_slice::<RunRequestMessage>(payload) {
-            return Ok(message);
-        }
-
-        let request: ValidatedRunRequest = serde_json::from_slice(payload).map_err(|e| {
-            EngineError::Generic(format!(
-                "Unable to parse run message as RunRequestMessage or ValidatedRunRequest: {}",
-                e
-            ))
-        })?;
-
-        Ok(RunRequestMessage {
-            run_id: Uuid::now_v7().to_string(),
-            request,
-            user_id: "default".to_string(),
+        serde_json::from_slice::<RunRequestMessage>(payload).map_err(|e| {
+            EngineError::Generic(format!("Unable to parse run message as RunRequestMessage: {}", e))
         })
     }
 

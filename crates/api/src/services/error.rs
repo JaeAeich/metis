@@ -21,6 +21,12 @@ pub enum ServiceError {
     #[error("Messaging error: {0}")]
     Messaging(String),
 
+    #[error("Validation failed: {0}")]
+    Validation(common::errors::ValidationError),
+
+    #[error("Engine config not found for {0}/{1}")]
+    EngineConfigNotFound(String, String),
+
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 }

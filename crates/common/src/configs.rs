@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// Base configuration shared across all services
@@ -111,7 +112,7 @@ impl Default for NatsConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineConfig {
     pub name: String,
@@ -135,7 +136,7 @@ pub struct FullEngineConfig {
     pub runs: RunsConfig,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Backend {
     #[default]
@@ -143,12 +144,12 @@ pub enum Backend {
     TES,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 pub struct WorkflowParamsConfig {
     pub style: WorkflowParamsStyle,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineParamsConfig {
     pub unknown_params_behavior: UnknownBehavior,
@@ -163,7 +164,7 @@ pub struct WorkdirConfig {
     pub subdirs: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum UnknownBehavior {
     Reject,
@@ -171,7 +172,7 @@ pub enum UnknownBehavior {
     Strip,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowParamsStyle {
     pub method: WorkflowParamsMethod,
@@ -189,7 +190,7 @@ pub struct WorkflowParamsStyle {
     pub params_file_flag: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum WorkflowParamsMethod {
     #[default]
@@ -197,7 +198,7 @@ pub enum WorkflowParamsMethod {
     File,
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, ToSchema, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum WorkflowParamsFormat {
     #[default]
@@ -206,7 +207,7 @@ pub enum WorkflowParamsFormat {
     Properties,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum BooleanStyle {
     Flag,
@@ -214,7 +215,7 @@ pub enum BooleanStyle {
     Equals,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineParam {
     pub names: Vec<String>,
@@ -246,7 +247,7 @@ impl PartialEq for BooleanStyle {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ParamType {
     String,
@@ -256,7 +257,7 @@ pub enum ParamType {
     List,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Validation {
     Enum {
@@ -295,7 +296,7 @@ pub enum Validation {
     },
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
 pub struct DeniedParam {
     pub pattern: String,
     #[serde(rename = "type")]
@@ -303,7 +304,7 @@ pub struct DeniedParam {
     pub reason: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum MatchType {
     Exact,

@@ -8,13 +8,14 @@ use crate::infrastructure::{Database, NatsPublisher, RedisClient};
 use crate::repositories::{
     RepositoryError, SqlxLogRepository, SqlxRunRepository, SqlxTaskRepository,
 };
-use crate::services::{LogService, RunService, TaskService};
+use crate::services::{LogService, RunService, ServiceInfoService, TaskService};
 
 #[derive(Clone)]
 pub struct Services {
     pub runs: RunService,
     pub tasks: TaskService,
     pub logs: LogService,
+    pub service_info: ServiceInfoService,
 }
 
 #[derive(Clone)]
@@ -27,47 +28,30 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(config: &Config) -> Result<Self, RepositoryError> {
-        let db_url = config.database_url.as_deref().unwrap_or("");
-        let db = Database::connect(db_url).await?;
+        let db = Database::connect(&config.database_url).await?;
         let pool = db.pool().clone();
 
         let run_repo = Arc::new(SqlxRunRepository::new(pool.clone()));
         let task_repo = Arc::new(SqlxTaskRepository::new(pool.clone()));
         let log_repo = Arc::new(SqlxLogRepository::new(pool));
 
-        let run_service = match &config.nats_url {
-            Some(nats_url) if !nats_url.is_empty() => match NatsPublisher::new(nats_url).await {
-                Ok(nats) => match &config.redis_url {
-                    Some(redis_url) if !redis_url.is_empty() => {
-                        match RedisClient::new(redis_url).await {
-                            Ok(redis) => RunService::with_messaging(
-                                run_repo,
-                                Arc::new(nats),
-                                Arc::new(redis),
-                            ),
-                            Err(e) => {
-                                tracing::warn!(error = %e, "Failed to connect to Redis, messaging disabled");
-                                RunService::new(run_repo)
-                            },
-                        }
-                    },
-                    _ => {
-                        tracing::warn!("REDIS_URL not set, messaging disabled");
-                        RunService::new(run_repo)
-                    },
-                },
-                Err(e) => {
-                    tracing::warn!(error = %e, "Failed to connect to NATS, messaging disabled");
-                    RunService::new(run_repo)
-                },
-            },
-            _ => RunService::new(run_repo),
-        };
+        let nats = NatsPublisher::new(&config.nats_url)
+            .await
+            .map_err(|e| RepositoryError::Connection(e.to_string()))?;
+        let redis = RedisClient::new(&config.redis_url)
+            .await
+            .map_err(|e| RepositoryError::Connection(e.to_string()))?;
+
+        let run_service =
+            RunService::with_messaging(run_repo.clone(), Arc::new(nats), Arc::new(redis.clone()));
+        let service_info_service =
+            ServiceInfoService::new(run_repo, Arc::new(redis), config.clone());
 
         let services = Services {
             runs: run_service,
             tasks: TaskService::new(task_repo),
             logs: LogService::new(log_repo),
+            service_info: service_info_service,
         };
 
         Ok(Self {
