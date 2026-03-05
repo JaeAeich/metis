@@ -1,6 +1,10 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use common::models::{RunId as RunIdModel, RunListResponse, RunLog, RunRequest, RunStatus};
+use axum::response::sse::{Event, KeepAlive, Sse};
+use common::models::{
+    RunId as RunIdModel, RunListResponse, RunLog, RunRequest, RunStatus, State as RunState,
+};
+use tokio_stream::wrappers::ReceiverStream;
 use uuid::Uuid;
 
 use crate::api::{ApiError, ApiResult};
@@ -126,6 +130,83 @@ pub async fn get_run_status(
         run_id: run.id.into_inner(),
         state: Some(run.state),
     }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/runs/{run_id}/status/stream",
+    tag = "Runs",
+    params(
+        ("run_id" = String, Path, description = "Workflow run ID")
+    ),
+    responses(
+        (status = 200, description = "SSE stream of run status updates", content_type = "text/event-stream"),
+        (status = 404, description = "Run not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn stream_run_status(
+    State(app): State<AppState>,
+    Path(run_id): Path<String>,
+) -> ApiResult<Sse<impl futures::Stream<Item = Result<Event, std::convert::Infallible>>>> {
+    let id = RunId::new(run_id.clone());
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, std::convert::Infallible>>(10);
+
+    tokio::spawn(async move {
+        let mut last_state: Option<RunState> = None;
+        let poll_interval_ms: u64 = 1_000;
+        let mut error_backoff_ms: u64 = poll_interval_ms;
+
+        loop {
+            match app.services.runs.find_by_id(&id).await {
+                Ok(Some(run)) => {
+                    error_backoff_ms = poll_interval_ms;
+                    let current_state = run.state;
+
+                    if last_state != Some(current_state) {
+                        let status = RunStatus {
+                            run_id: run.id.into_inner(),
+                            state: Some(current_state),
+                        };
+
+                        let json = serde_json::to_string(&status).unwrap_or_default();
+                        let event = Event::default().data(json);
+
+                        if tx.send(Ok(event)).await.is_err() {
+                            return;
+                        }
+
+                        last_state = Some(current_state);
+                    }
+
+                    if matches!(
+                        current_state,
+                        RunState::Complete
+                            | RunState::ExecutorError
+                            | RunState::SystemError
+                            | RunState::Canceled
+                            | RunState::Preempted
+                    ) {
+                        return;
+                    }
+                },
+                Ok(None) => {
+                    tracing::error!("Run not found: {}", id);
+                    return;
+                },
+                Err(e) => {
+                    tracing::error!("Error fetching run status: {}", e);
+                    error_backoff_ms = error_backoff_ms.saturating_mul(2).min(30_000);
+                },
+            }
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(error_backoff_ms)).await;
+        }
+    });
+
+    Ok(Sse::new(ReceiverStream::new(rx))
+        .keep_alive(KeepAlive::new().interval(std::time::Duration::from_secs(15))))
 }
 
 #[utoipa::path(

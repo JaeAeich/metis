@@ -1,6 +1,7 @@
 const API_BASE = "/api";
 let currentRunId = null;
 let logsEventSource = null;
+let statusEventSource = null;
 let logsPaused = false;
 let _nextPageToken = null;
 
@@ -313,6 +314,7 @@ async function _loadRun(runId) {
     const run = await runRes.json();
     renderRunHeader(run);
     renderOverview(run);
+    connectStatusStream();
   } catch (err) {
     document.getElementById("overview-content").innerHTML =
       `<div class="empty-state">Error: ${escapeHtml(err.message)}</div>`;
@@ -565,6 +567,57 @@ function connectLogs() {
   logsEventSource.onerror = () => {
     console.log("SSE connection lost, reconnecting...");
     setTimeout(connectLogs, 3000);
+  };
+}
+
+function connectStatusStream(retries = 0) {
+  if (statusEventSource) statusEventSource.close();
+  const url = `${API_BASE}/runs/${encodeURIComponent(currentRunId)}/status/stream`;
+  statusEventSource = new EventSource(url);
+
+  statusEventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      const badge = document.getElementById("run-state-badge");
+      if (badge) {
+        badge.classList.forEach((cls) => {
+          if (cls !== "status-badge" && cls.startsWith("status-")) badge.classList.remove(cls);
+        });
+        const sc = getStatusClass(data.state);
+        if (sc) badge.classList.add(sc);
+        badge.textContent = data.state;
+      }
+
+      if (DELETABLE_STATES.has(data.state)) {
+        statusEventSource.close();
+        statusEventSource = null;
+        renderRunHeader({ state: data.state });
+        // Refresh tasks once run reaches terminal state
+        fetch(`${API_BASE}/runs/${encodeURIComponent(currentRunId)}/tasks`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((tasks) => {
+            if (tasks) renderTasks(tasks);
+          })
+          .catch(() => {});
+      }
+    } catch (e) {
+      console.error("Failed to parse status update:", e);
+    }
+  };
+
+  statusEventSource.onerror = () => {
+    if (!statusEventSource || statusEventSource.readyState === EventSource.CLOSED) return;
+    statusEventSource.close();
+    statusEventSource = null;
+    if (retries >= 5) {
+      console.warn("Status SSE max retries reached, giving up.");
+      return;
+    }
+    const delay = Math.min(1000 * 2 ** retries, 30_000);
+    console.log(
+      `Status SSE connection lost, reconnecting in ${delay}ms (attempt ${retries + 1})...`
+    );
+    setTimeout(() => connectStatusStream(retries + 1), delay);
   };
 }
 
