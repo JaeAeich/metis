@@ -37,6 +37,9 @@ impl ProcessExecutor {
             .stdin(std::process::Stdio::null())
             .kill_on_drop(true);
 
+        #[cfg(unix)]
+        cmd.process_group(0);
+
         let child = cmd.spawn().map_err(|e| {
             EngineError::Execution(format!("Failed to spawn workflow process: {}", e))
         })?;
@@ -123,28 +126,33 @@ impl ProcessExecutor {
             use nix::sys::signal::{self, Signal};
             use nix::unistd::Pid;
 
-            let pid = Pid::from_raw(pid as i32);
+            // Negate PID to target the entire process group (PGID = PID since
+            // we called process_group(0) at spawn time).
+            let pgid = Pid::from_raw(-(pid as i32));
 
-            signal::kill(pid, Signal::SIGTERM).map_err(|e| {
-                EngineError::Execution(format!("Failed to send SIGTERM to process {}: {}", pid, e))
+            signal::kill(pgid, Signal::SIGTERM).map_err(|e| {
+                EngineError::Execution(format!(
+                    "Failed to send SIGTERM to process group {}: {}",
+                    pid, e
+                ))
             })?;
 
             tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-            match signal::kill(pid, None) {
+            match signal::kill(pgid, None) {
                 Ok(_) => {
-                    signal::kill(pid, Signal::SIGKILL).map_err(|e| {
+                    signal::kill(pgid, Signal::SIGKILL).map_err(|e| {
                         EngineError::Execution(format!(
-                            "Failed to send SIGKILL to process {}: {}",
+                            "Failed to send SIGKILL to process group {}: {}",
                             pid, e
                         ))
                     })?;
                 },
                 Err(Errno::ESRCH) => {
-                    info!(pid = %pid, "Process has already exited");
+                    info!(pid = %pid, "Process group has already exited");
                 },
                 Err(e) => {
-                    warn!(pid = %pid, error = %e, "Failed to check process status before SIGKILL");
+                    warn!(pid = %pid, error = %e, "Failed to check process group status before SIGKILL");
                 },
             }
         }
