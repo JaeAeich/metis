@@ -144,6 +144,22 @@ body {
   font-size: 0.78rem;
 }
 
+.btn-delete {
+  background: transparent;
+  color: var(--text-light);
+  border-color: var(--border);
+}
+.btn-delete:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-error) 8%, transparent);
+  color: var(--status-error);
+  border-color: color-mix(in srgb, var(--status-error) 40%, transparent);
+}
+
+.btn-delete-sm {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+}
+
 .btn:disabled {
   opacity: 0.38;
   cursor: not-allowed;
@@ -235,6 +251,15 @@ body {
   width: 1%;
   white-space: nowrap;
   text-align: right;
+}
+
+.col-action .btn + .btn {
+  margin-left: 0.35rem;
+}
+
+.run-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 /* ── Status badges ───────────────────────────────────────────────────────── */

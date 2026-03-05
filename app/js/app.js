@@ -94,7 +94,7 @@ function renderRunsList(data) {
         ? `<button
             class="btn btn-delete btn-delete-sm"
             onclick="event.stopPropagation(); deleteRunById('${safeId}', this)"
-            title="Permanently delete this completed run">Delete</button>`
+            title="Permanently delete this run from the database">Delete</button>`
         : "";
 
       return `
@@ -212,7 +212,7 @@ function renderRunHeader(run) {
   const canDelete = DELETABLE_STATES.has(state);
 
   const cancelBtn = canCancel
-    ? `<button type="button" class="btn btn-cancel" id="cancel-btn" onclick="cancelRun()">Cancel Run</button>`
+    ? `<button type="button" class="btn btn-danger" id="cancel-btn" onclick="cancelRun()">Cancel Run</button>`
     : "";
 
   const deleteBtn = canDelete
