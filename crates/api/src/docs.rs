@@ -13,6 +13,7 @@ use crate::api::logs::{LogLineListResponse, LogLineResponse};
         crate::api::runs::get_run_log,
         crate::api::runs::get_run_status,
         crate::api::runs::cancel_run,
+        crate::api::runs::delete_run,
         crate::api::tasks::list_tasks,
         crate::api::tasks::get_task,
         crate::api::logs::list_log_lines,

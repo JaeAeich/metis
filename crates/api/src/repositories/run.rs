@@ -31,6 +31,7 @@ pub trait RunRepository: Send + Sync {
     ) -> RepositoryResult<bool>;
     async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>>;
     async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()>;
+    async fn soft_delete(&self, id: &RunId) -> RepositoryResult<bool>;
 }
 
 pub struct SqlxRunRepository {
@@ -52,9 +53,9 @@ impl RunRepository for SqlxRunRepository {
                 run_id, user_id, state, workflow_type, workflow_type_version,
                 workflow_url, workflow_engine, workflow_engine_version,
                 workflow_params, workflow_engine_parameters, tags,
-                start_time, end_time, created_at
+                start_time, end_time, created_at, deleted_at
             FROM runs
-            WHERE run_id = $1
+            WHERE run_id = $1 AND deleted_at IS NULL
             "#,
         )
         .bind(id.as_str())
@@ -76,7 +77,7 @@ impl RunRepository for SqlxRunRepository {
             "SELECT run_id, user_id, state, workflow_type, workflow_type_version, \
             workflow_url, workflow_engine, workflow_engine_version, \
             workflow_params, workflow_engine_parameters, tags, \
-            start_time, end_time, created_at FROM runs WHERE 1=1",
+            start_time, end_time, created_at, deleted_at FROM runs WHERE deleted_at IS NULL",
         );
 
         let mut bind_idx = 1;
@@ -138,9 +139,11 @@ impl RunRepository for SqlxRunRepository {
     }
 
     async fn count_by_state(&self) -> RepositoryResult<HashMap<String, i64>> {
-        let rows = sqlx::query("SELECT state, COUNT(*) as count FROM runs GROUP BY state")
-            .fetch_all(&self.pool)
-            .await?;
+        let rows = sqlx::query(
+            "SELECT state, COUNT(*) as count FROM runs WHERE deleted_at IS NULL GROUP BY state",
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(rows
             .into_iter()
@@ -221,9 +224,9 @@ impl RunRepository for SqlxRunRepository {
             SELECT run_id, user_id, state, workflow_type, workflow_type_version,
                 workflow_url, workflow_engine, workflow_engine_version,
                 workflow_params, workflow_engine_parameters, tags,
-                start_time, end_time, created_at
+                start_time, end_time, created_at, deleted_at
             FROM runs
-            WHERE state IN ('RUNNING', 'INITIALIZING')
+            WHERE state IN ('RUNNING', 'INITIALIZING') AND deleted_at IS NULL
             "#,
         )
         .fetch_all(&self.pool)
@@ -239,6 +242,16 @@ impl RunRepository for SqlxRunRepository {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    async fn soft_delete(&self, id: &RunId) -> RepositoryResult<bool> {
+        let result = sqlx::query(
+            "UPDATE runs SET deleted_at = NOW() WHERE run_id = $1 AND deleted_at IS NULL",
+        )
+        .bind(id.as_str())
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() > 0)
     }
 }
 
@@ -260,6 +273,7 @@ fn map_row_to_run(row: sqlx::postgres::PgRow) -> Run {
         start_time: row.get("start_time"),
         end_time: row.get("end_time"),
         created_at: row.get("created_at"),
+        deleted_at: row.get("deleted_at"),
     }
 }
 

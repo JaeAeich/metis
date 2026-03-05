@@ -126,6 +126,37 @@ impl RunService {
         self.repo.finalize_orphaned_run(id, state).await.map_err(Into::into)
     }
 
+    pub async fn delete_run(&self, id: &RunId) -> ServiceResult<()> {
+        let run = self
+            .repo
+            .find_by_id(id)
+            .await?
+            .ok_or_else(|| ServiceError::RunNotFound(id.to_string()))?;
+
+        match run.state {
+            State::Complete
+            | State::ExecutorError
+            | State::SystemError
+            | State::Canceled
+            | State::Preempted => {
+                let deleted = self.repo.soft_delete(id).await?;
+                if deleted {
+                    tracing::info!(
+                        run_id = %id,
+                        user_id = %run.user_id,
+                        state = %run.state,
+                        "Run soft deleted"
+                    );
+                }
+                Ok(())
+            },
+            _ => Err(ServiceError::InvalidState(format!(
+                "Cannot delete run in non-terminal state: {}",
+                run.state
+            ))),
+        }
+    }
+
     pub fn redis(&self) -> &Arc<RedisClient> {
         &self.redis
     }
