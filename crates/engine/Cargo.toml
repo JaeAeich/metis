@@ -3,7 +3,6 @@ anyhow = "1.0.102"
 async-nats = { workspace = true }
 async-trait = "0.1.89"
 chrono = { features = [ "serde" ], version = "0.4.44" }
-clap = { features = [ "derive" ], version = "4.5.60" }
 common = { path = "../common" }
 envy = "0.4"
 futures = "0.3.32"
@@ -15,8 +14,7 @@ serde_yaml = "0.9.34"
 sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-url = "2.5.8"
+url = { features = [ "serde" ], version = "2.5.8" }
 uuid = { workspace = true }
 
 [dev-dependencies]

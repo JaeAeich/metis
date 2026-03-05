@@ -1,17 +1,13 @@
 use serde::Deserialize;
+use url::Url;
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfig {
-    #[serde(default)]
-    pub database_url: Option<String>,
-
-    #[serde(default)]
-    pub nats_url: Option<String>,
+    pub database_url: Url,
+    pub nats_url: Url,
     #[serde(default = "default_notification_subject")]
     pub nats_notification_subject: String,
-
-    #[serde(default)]
-    pub redis_url: Option<String>,
+    pub redis_url: Url,
 }
 
 fn default_notification_subject() -> String {
