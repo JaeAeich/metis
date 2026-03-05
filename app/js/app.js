@@ -5,6 +5,13 @@ let logsPaused = false;
 let _nextPageToken = null;
 
 const CANCELABLE_STATES = new Set(["QUEUED", "INITIALIZING", "RUNNING", "PAUSED"]);
+const DELETABLE_STATES = new Set([
+  "COMPLETE",
+  "EXECUTOR_ERROR",
+  "SYSTEM_ERROR",
+  "CANCELED",
+  "PREEMPTED",
+]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -73,13 +80,22 @@ function renderRunsList(data) {
     .map((run) => {
       const state = run.state || "UNKNOWN";
       const canCancel = CANCELABLE_STATES.has(state);
+      const canDelete = DELETABLE_STATES.has(state);
       const safeId = escapeAttr(run.run_id);
+
       const cancelBtn = canCancel
         ? `<button
-            class="btn btn-danger btn-danger-sm"
+            class="btn btn-cancel btn-cancel-sm"
             onclick="event.stopPropagation(); cancelRunById('${safeId}', this)"
-            title="Cancel run">Cancel</button>`
-        : `<button class="btn btn-danger btn-danger-sm" disabled title="Cannot cancel">Cancel</button>`;
+            title="Cancel the running workflow">Cancel</button>`
+        : "";
+
+      const deleteBtn = canDelete
+        ? `<button
+            class="btn btn-delete btn-delete-sm"
+            onclick="event.stopPropagation(); deleteRunById('${safeId}', this)"
+            title="Permanently delete this completed run">Delete</button>`
+        : "";
 
       return `
         <tr data-state="${state}" onclick="window.location.href='/run.html?run_id=${encodeURIComponent(run.run_id)}'">
@@ -87,7 +103,7 @@ function renderRunsList(data) {
           <td><span class="status-badge ${getStatusClass(state)}">${state}</span></td>
           <td>${formatRelativeTime(run.start_time)}</td>
           <td>${run.end_time ? formatRelativeTime(run.end_time) : "-"}</td>
-          <td class="col-action">${cancelBtn}</td>
+          <td class="col-action">${cancelBtn}${deleteBtn}</td>
         </tr>`;
     })
     .join("");
@@ -96,7 +112,6 @@ function renderRunsList(data) {
 }
 
 async function _cancelRunById(runId, btn) {
-  if (!confirm(`Cancel run ${runId}?\nThis cannot be undone.`)) return;
   btn.disabled = true;
   btn.textContent = "…";
   try {
@@ -119,6 +134,55 @@ async function _cancelRunById(runId, btn) {
   }
 }
 
+async function _deleteRunById(runId, btn) {
+  btn.disabled = true;
+  btn.textContent = "…";
+  try {
+    const res = await fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(`Delete failed: ${err.msg || res.status}`);
+      btn.disabled = false;
+      btn.textContent = "Delete";
+      return;
+    }
+    setTimeout(() => htmx.trigger("#runs-body", "load"), 300);
+  } catch (err) {
+    alert(`Delete failed: ${err.message}`);
+    btn.disabled = false;
+    btn.textContent = "Delete";
+  }
+}
+
+async function _deleteRun() {
+  const btn = document.getElementById("delete-btn");
+  if (!btn || !currentRunId) return;
+
+  btn.disabled = true;
+  btn.textContent = "Deleting…";
+
+  try {
+    const res = await fetch(`${API_BASE}/runs/${encodeURIComponent(currentRunId)}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(`Delete failed: ${err.msg || res.status}`);
+      btn.disabled = false;
+      btn.textContent = "Delete Run";
+      return;
+    }
+
+    window.location.href = "/";
+  } catch (err) {
+    alert(`Delete failed: ${err.message}`);
+    btn.disabled = false;
+    btn.textContent = "Delete Run";
+  }
+}
 // ── Run detail ────────────────────────────────────────────────────────────
 
 async function _loadRun(runId) {
@@ -145,27 +209,20 @@ async function _loadRun(runId) {
 function renderRunHeader(run) {
   const state = run.state || "UNKNOWN";
   const canCancel = CANCELABLE_STATES.has(state);
+  const canDelete = DELETABLE_STATES.has(state);
+
+  const cancelBtn = canCancel
+    ? `<button type="button" class="btn btn-cancel" id="cancel-btn" onclick="cancelRun()">Cancel Run</button>`
+    : "";
+
+  const deleteBtn = canDelete
+    ? `<button type="button" class="btn btn-delete" id="delete-btn" onclick="deleteRun()">Delete Run</button>`
+    : "";
+
   document.getElementById("run-header").innerHTML = `
     <div class="run-header-top">
       <span class="status-badge ${getStatusClass(state)}">${state}</span>
-      <button type="button" class="btn btn-danger" id="cancel-btn"
-        onclick="cancelRun()" ${canCancel ? "" : "disabled"}>
-        Cancel Run
-      </button>
-    </div>
-    <div class="run-info">
-      <div class="run-info-item">
-        <label>Started</label>
-        <span>${formatTimestamp(run.request?.start_time)}</span>
-      </div>
-      <div class="run-info-item">
-        <label>Workflow URL</label>
-        <span>${truncate(run.request?.workflow_url, 50)}</span>
-      </div>
-      <div class="run-info-item">
-        <label>Workflow Type</label>
-        <span>${escapeHtml(run.request?.workflow_type || "-")} ${escapeHtml(run.request?.workflow_type_version || "")}</span>
-      </div>
+      <div class="run-actions">${cancelBtn}${deleteBtn}</div>
     </div>`;
 }
 
@@ -333,5 +390,7 @@ document.body.addEventListener("htmx:beforeSwap", (evt) => {
 window.loadRun = _loadRun;
 window.cancelRun = _cancelRun;
 window.cancelRunById = _cancelRunById;
+window.deleteRun = _deleteRun;
+window.deleteRunById = _deleteRunById;
 window.showTab = _showTab;
 window.toggleLogs = _toggleLogs;
