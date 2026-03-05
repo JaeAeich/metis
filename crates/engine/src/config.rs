@@ -1,17 +1,15 @@
 use serde::Deserialize;
+use url::Url;
 
-#[derive(Debug, Clone, Default, Deserialize)]
+use crate::error::{EngineError, EngineResult};
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfig {
-    #[serde(default)]
-    pub database_url: Option<String>,
-
-    #[serde(default)]
-    pub nats_url: Option<String>,
+    pub database_url: Url,
+    pub nats_url: Url,
     #[serde(default = "default_notification_subject")]
     pub nats_notification_subject: String,
-
-    #[serde(default)]
-    pub redis_url: Option<String>,
+    pub redis_url: Url,
 }
 
 fn default_notification_subject() -> String {
@@ -22,4 +20,24 @@ impl ServerConfig {
     pub fn from_env() -> Result<Self, envy::Error> {
         envy::from_env()
     }
+}
+
+pub async fn load_engine_config() -> EngineResult<common::configs::FullEngineConfig> {
+    let config_path = match std::env::var("ENGINE_CONFIG_PATH") {
+        Ok(path) => path,
+        Err(_) => {
+            tracing::warn!(
+                "ENGINE_CONFIG_PATH not set, defaulting to /etc/metis/engine-config.yaml"
+            );
+            "/etc/metis/engine-config.yaml".to_string()
+        },
+    };
+
+    let config_content = tokio::fs::read_to_string(&config_path).await.map_err(|e| {
+        EngineError::Config(format!("Failed to read config file {}: {}", config_path, e))
+    })?;
+
+    serde_yaml::from_str(&config_content).map_err(|e| {
+        EngineError::Config(format!("Failed to parse config file {}: {}", config_path, e))
+    })
 }

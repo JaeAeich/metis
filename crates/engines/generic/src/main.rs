@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use common::models::{TaskLog, WorkflowFileInfo};
-use engine::{Engine, EngineError};
+use engine::{Engine, EngineError, EngineResult, server};
 
 struct GenericEngine;
 
@@ -24,6 +24,7 @@ impl Engine for GenericEngine {
 }
 
 #[tokio::main]
-async fn main() -> engine::EngineResult<()> {
-    engine::bootstrap::<GenericEngine>().await
+async fn main() -> EngineResult<()> {
+    let engine = GenericEngine;
+    server::bootstrap(engine).await
 }

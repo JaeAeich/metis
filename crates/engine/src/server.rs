@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use common::configs::FullEngineConfig;
-use tracing::warn;
+use tokio::try_join;
 
 use crate::clients::{Db, Nats, Valkey};
 use crate::config::ServerConfig;
@@ -9,60 +8,45 @@ use crate::engine::Engine;
 use crate::error::EngineResult;
 use crate::runtime::EngineRuntime;
 
-pub async fn bootstrap<E>(
-    engine: E,
-    config: FullEngineConfig,
-    server_config: ServerConfig,
-) -> EngineResult<()>
+pub async fn bootstrap<E>(engine: E) -> EngineResult<()>
 where
     E: Engine + 'static,
 {
-    let nats = match &server_config.nats_url {
-        Some(url) if !url.is_empty() => {
-            match Nats::new(url, &server_config.nats_notification_subject, config.engine.clone())
-                .await
-            {
-                Ok(n) => Some(Arc::new(n)),
-                Err(e) => {
-                    warn!(error = %e, nats_url = %url, "NATS unavailable — messaging disabled");
-                    None
-                },
-            }
-        },
-        _ => {
-            warn!("NATS_URL not set — messaging disabled");
-            None
-        },
-    };
+    let config = crate::config::load_engine_config().await?;
+    let server_config = ServerConfig::from_env().map_err(|e| {
+        crate::error::EngineError::Config(format!("Failed to load server config: {}", e))
+    })?;
 
-    let valkey = match &server_config.redis_url {
-        Some(url) if !url.is_empty() => match Valkey::new(url, config.engine.clone()).await {
-            Ok(v) => Some(Arc::new(v)),
-            Err(e) => {
-                warn!(error = %e, "Redis unavailable — engine tracking disabled");
-                None
-            },
+    let (nats, valkey, db) = try_join!(
+        async {
+            Ok::<_, crate::error::EngineError>(Arc::new(
+                Nats::new(
+                    server_config.nats_url.as_str(),
+                    &server_config.nats_notification_subject,
+                    config.engine.clone(),
+                )
+                .await?,
+            ))
         },
-        _ => {
-            warn!("REDIS_URL not set — engine tracking disabled");
-            None
+        async {
+            Ok::<_, crate::error::EngineError>(Arc::new(
+                Valkey::new(server_config.redis_url.as_str(), config.engine.clone()).await?,
+            ))
         },
-    };
+        async {
+            Ok::<_, crate::error::EngineError>(Arc::new(
+                Db::new(server_config.database_url.as_str()).await?,
+            ))
+        },
+    )?;
 
-    let db = match &server_config.database_url {
-        Some(url) if !url.is_empty() => match Db::new(url).await {
-            Ok(db) => Some(Arc::new(db)),
-            Err(e) => {
-                warn!(error = %e, "Database unavailable — run persistence disabled");
-                None
-            },
-        },
-        _ => {
-            warn!("DATABASE_URL not set — run persistence disabled");
-            None
-        },
-    };
-
-    let runtime = Arc::new(EngineRuntime::new(Arc::new(engine), config, nats, valkey, db, false));
+    let runtime = Arc::new(EngineRuntime::new(
+        Arc::new(engine),
+        config,
+        Some(nats),
+        Some(valkey),
+        Some(db),
+        false,
+    ));
     runtime.start().await
 }
