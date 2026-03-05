@@ -143,6 +143,24 @@ pub struct ServiceInfo {
     #[serde(rename = "tags")]
     #[schema(example = json!({"environment": "production", "version": "1.0.0"}))]
     pub tags: std::collections::HashMap<String, String>,
+
+    /// Registered engine instances and their configurations
+    #[serde(rename = "engines")]
+    pub engines: Vec<EngineInfo>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct EngineInfo {
+    pub name: String,
+    pub version: String,
+    pub id: String,
+    pub workflow_types: Vec<String>,
+    pub workflow_type_versions: Vec<String>,
+    pub backend: crate::configs::Backend,
+    pub workflow_params: crate::configs::WorkflowParamsConfig,
+    pub engine_params: crate::configs::EngineParamsConfig,
+    pub denied_params: Vec<crate::configs::DeniedParam>,
+    pub ignored_params: Option<Vec<String>>,
 }
 
 /// An object that can optionally include information about the error.
