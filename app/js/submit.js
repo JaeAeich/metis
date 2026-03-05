@@ -44,7 +44,7 @@ function populateEngineSelect() {
   registeredEngines.forEach((eng) => {
     const opt = document.createElement("option");
     opt.value = eng.name;
-    opt.textContent = eng.name;
+    opt.textContent = `${eng.name} (${eng.version})`;
     sel.appendChild(opt);
   });
 
@@ -222,7 +222,17 @@ function populateTemplates() {
 }
 
 function renderTemplateCards(eng, container) {
-  const templates = ENGINE_TEMPLATES[eng.name.toLowerCase()] || [];
+  const allTemplates = ENGINE_TEMPLATES[eng.name.toLowerCase()] || [];
+  const supportedTypes = eng.workflow_types || [];
+  const supportedVersions = eng.workflow_type_versions || [];
+
+  const templates = allTemplates.filter((tpl) => {
+    const typeMatch = supportedTypes.length === 0 || supportedTypes.includes(tpl.workflow_type);
+    const versionMatch =
+      supportedVersions.length === 0 || supportedVersions.includes(tpl.workflow_type_version);
+    return typeMatch && versionMatch;
+  });
+
   container.innerHTML = "";
 
   if (templates.length === 0) {
