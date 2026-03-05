@@ -61,7 +61,7 @@ function escapeAttr(str) {
     .replace(/>/g, "&gt;");
 }
 
-function truncate(str, maxLen = 40) {
+function _truncate(str, maxLen = 40) {
   if (!str || str.length <= maxLen) return escapeHtml(str);
   return `<span title="${escapeAttr(str)}" style="cursor:help;display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;">${escapeHtml(str.substring(0, maxLen))}…</span>`;
 }
@@ -78,21 +78,23 @@ function calculatePageSize() {
   return Math.max(5, Math.min(30, rows));
 }
 
-function debounce(fn, delay) {
-  let timeoutId;
-  return function (...args) {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn.apply(this, args), delay);
-  };
+function calculateDuration(start, end) {
+  if (!start) return "-";
+  const startTime = new Date(start);
+  const endTime = end ? new Date(end) : new Date();
+  const diffMs = endTime - startTime;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffSecs = Math.floor((diffMs % 60000) / 1000);
+  if (diffMins === 0) return `${diffSecs}s`;
+  if (diffSecs < 60) return `${diffMins}m ${diffSecs}s`;
 }
 
-// ── Runs list ─────────────────────────────────────────────────────────────
-
-function filterRuns() {
-  const state = document.getElementById("state-filter").value;
-  document.querySelectorAll("#runs-body tr").forEach((row) => {
-    row.style.display = !state || row.dataset.state === state ? "" : "none";
-  });
+function _formatJsonSection(data, title) {
+  const jsonStr = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  return `<details class="json-details">
+    <summary>${title}</summary>
+    <pre class="json-viewer"><code>${escapeHtml(jsonStr)}</code></pre>
+  </details>`;
 }
 
 async function loadRunsPage(pageNum = 1) {
@@ -297,22 +299,34 @@ async function _deleteRun() {
 
 async function _loadRun(runId) {
   currentRunId = runId;
-  document.getElementById("run-id-display").textContent = runId;
+  const display = document.getElementById("run-id-display");
+  if (display) {
+    display.textContent = runId;
+  }
 
   try {
-    const [runRes, tasksRes] = await Promise.all([
-      fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}`),
-      fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}/tasks`),
-    ]);
-    if (!runRes.ok) throw new Error("Run not found");
+    const runRes = await fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}`);
+    if (!runRes.ok) {
+      const err = await runRes.json().catch(() => ({}));
+      throw new Error(err.msg || `HTTP ${runRes.status}`);
+    }
     const run = await runRes.json();
-    const tasks = await tasksRes.json();
     renderRunHeader(run);
     renderOverview(run);
-    renderTasks(tasks);
   } catch (err) {
-    document.getElementById("run-header").innerHTML =
+    document.getElementById("overview-content").innerHTML =
       `<div class="empty-state">Error: ${escapeHtml(err.message)}</div>`;
+    return;
+  }
+
+  try {
+    const tasksRes = await fetch(`${API_BASE}/runs/${encodeURIComponent(runId)}/tasks`);
+    if (tasksRes.ok) {
+      const tasks = await tasksRes.json();
+      renderTasks(tasks);
+    }
+  } catch (_) {
+    // tasks are non-critical, silently ignore
   }
 }
 
@@ -321,19 +335,22 @@ function renderRunHeader(run) {
   const canCancel = CANCELABLE_STATES.has(state);
   const canDelete = DELETABLE_STATES.has(state);
 
-  const cancelBtn = canCancel
-    ? `<button type="button" class="btn btn-danger" id="cancel-btn" onclick="cancelRun()">Cancel Run</button>`
-    : "";
+  const badge = document.getElementById("run-state-badge");
+  if (badge) {
+    badge.className = `status-badge ${getStatusClass(state)}`;
+    badge.textContent = state;
+  }
 
-  const deleteBtn = canDelete
-    ? `<button type="button" class="btn btn-delete" id="delete-btn" onclick="deleteRun()">Delete Run</button>`
-    : "";
-
-  document.getElementById("run-header").innerHTML = `
-    <div class="run-header-top">
-      <span class="status-badge ${getStatusClass(state)}">${state}</span>
-      <div class="run-actions">${cancelBtn}${deleteBtn}</div>
-    </div>`;
+  const actions = document.getElementById("run-detail-actions");
+  if (actions) {
+    const cancelBtn = canCancel
+      ? `<button type="button" class="btn btn-danger btn-sm" id="cancel-btn" onclick="cancelRun()">Cancel</button>`
+      : "";
+    const deleteBtn = canDelete
+      ? `<button type="button" class="btn btn-delete btn-sm" id="delete-btn" onclick="deleteRun()">Delete</button>`
+      : "";
+    actions.innerHTML = cancelBtn + deleteBtn;
+  }
 }
 
 async function _cancelRun() {
@@ -361,35 +378,119 @@ async function _cancelRun() {
   }
 }
 
+function syntaxHighlightJson(obj) {
+  const json = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+  return escapeHtml(json).replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+    (match) => {
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) return `<span class="json-key">${match}</span>`;
+        return `<span class="json-str">${match}</span>`;
+      }
+      if (/true|false/.test(match)) return `<span class="json-bool">${match}</span>`;
+      if (/null/.test(match)) return `<span class="json-null">${match}</span>`;
+      return `<span class="json-num">${match}</span>`;
+    }
+  );
+}
+
+function syntaxHighlightCmd(cmd) {
+  return escapeHtml(cmd).replace(
+    /(\s)(--?[\w-][\w-]*)/g,
+    (_, space, flag) => `${space}<span class="cmd-flag">${flag}</span>`
+  );
+}
+
 function renderOverview(run) {
-  const tags = run.request?.tags || {};
+  const req = run.request || {};
+  const tags = req.tags || {};
+  const runLog = run.run_log || {};
+
   const tagsHtml =
     Object.keys(tags).length > 0
       ? Object.entries(tags)
           .map(
             ([k, v]) =>
-              `<div style="margin-bottom:0.25rem;"><strong>${truncate(k, 30)}:</strong> ${truncate(String(v), 50)}</div>`
+              `<span class="tag-chip"><strong>${escapeHtml(k)}</strong>: ${escapeHtml(String(v))}</span>`
           )
           .join("")
-      : '<div class="empty-state">No tags</div>';
+      : '<span class="empty-state">No tags</span>';
+
+  const cmdStr = runLog.cmd && runLog.cmd.length > 0 ? runLog.cmd.join(" ") : null;
+  const cmdHtml = cmdStr
+    ? `<div class="code-block-wrap">
+        <button class="copy-btn" onclick="copyToClipboard(this, ${JSON.stringify(cmdStr)})">Copy</button>
+        <pre class="cmd-viewer"><code>${syntaxHighlightCmd(cmdStr)}</code></pre>
+      </div>`
+    : '<span class="empty-state">Not available</span>';
+
+  function jsonBlock(data) {
+    const str = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    return `<div class="code-block-wrap">
+      <button class="copy-btn" onclick="copyToClipboard(this, ${JSON.stringify(str)})">Copy</button>
+      <pre class="json-viewer"><code>${syntaxHighlightJson(data)}</code></pre>
+    </div>`;
+  }
+
+  const workflowParamsHtml = req.workflow_params
+    ? `<div class="overview-section"><p class="overview-section-label">Workflow Params</p>${jsonBlock(req.workflow_params)}</div>`
+    : "";
+  const engineParamsHtml = req.workflow_engine_parameters
+    ? `<div class="overview-section"><p class="overview-section-label">Engine Parameters</p>${jsonBlock(req.workflow_engine_parameters)}</div>`
+    : "";
+
+  const urlHtml = req.workflow_url
+    ? `<div class="run-url-row">
+        <span class="overview-section-label">Workflow URL</span>
+        <a class="run-url" href="${escapeAttr(req.workflow_url)}" target="_blank" rel="noopener">${escapeHtml(req.workflow_url)}</a>
+      </div>`
+    : "";
 
   document.getElementById("overview-content").innerHTML = `
     <div class="run-info">
       <div class="run-info-item">
-        <label>Run ID</label>
-        <span class="run-id">${escapeHtml(currentRunId)}</span>
+        <label>Type</label>
+        <span>${escapeHtml(req.workflow_type || "-")} <span class="meta-version">${escapeHtml(req.workflow_type_version || "")}</span></span>
       </div>
       <div class="run-info-item">
-        <label>Workflow Engine</label>
-        <span>${escapeHtml(run.request?.workflow_engine || "-")}</span>
+        <label>Engine</label>
+        <span>${escapeHtml(req.workflow_engine || "-")} <span class="meta-version">${escapeHtml(req.workflow_engine_version || "")}</span></span>
       </div>
       <div class="run-info-item">
-        <label>Engine Version</label>
-        <span>${escapeHtml(run.request?.workflow_engine_version || "-")}</span>
+        <label>Started</label>
+        <span>${formatTimestamp(runLog.start_time)}</span>
+      </div>
+      <div class="run-info-item">
+        <label>Duration</label>
+        <span>${calculateDuration(runLog.start_time, runLog.end_time)}</span>
+      </div>
+      <div class="run-info-item">
+        <label>Exit Code</label>
+        <span>${runLog.exit_code != null ? runLog.exit_code : "-"}</span>
       </div>
     </div>
-    <h3 style="margin-top:1.5rem;margin-bottom:0.5rem;">Tags</h3>
-    <div>${tagsHtml}</div>`;
+
+    ${urlHtml}
+
+    ${Object.keys(tags).length > 0 ? `<div class="overview-section"><p class="overview-section-label">Tags</p><div class="tag-chips">${tagsHtml}</div></div>` : ""}
+
+    <div class="overview-section">
+      <p class="overview-section-label">Command</p>
+      ${cmdHtml}
+    </div>
+
+    ${workflowParamsHtml}
+    ${engineParamsHtml}
+  `;
+}
+
+function _copyToClipboard(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = "Copied!";
+    setTimeout(() => {
+      btn.textContent = "Copy";
+    }, 1500);
+  });
 }
 
 function renderTasks(data) {
@@ -504,6 +605,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 10000);
   }
 });
+
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+function filterRuns() {
+  const state = document.getElementById("state-filter")?.value || "";
+  document.querySelectorAll("#runs-body tr[data-state]").forEach((row) => {
+    row.style.display = !state || row.dataset.state === state ? "" : "none";
+  });
+}
 
 // ── Exports ───────────────────────────────────────────────────────────────
 

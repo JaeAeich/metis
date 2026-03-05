@@ -14,7 +14,7 @@ engine:
 
   workflowParams:
     style:
-      method: inline
+      method: file
       prefix: "--"
       separator: " "
       keyValueFormat: "{key}={value}"
