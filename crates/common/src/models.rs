@@ -143,41 +143,24 @@ pub struct ServiceInfo {
     #[serde(rename = "tags")]
     #[schema(example = json!({"environment": "production", "version": "1.0.0"}))]
     pub tags: std::collections::HashMap<String, String>,
+
+    /// Registered engine instances and their configurations
+    #[serde(rename = "engines")]
+    pub engines: Vec<EngineInfo>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct Stats {
-    pub system: SystemInfo,
-    pub database: DatabaseStats,
-    pub engines: Vec<EngineInstance>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct SystemInfo {
-    pub cpu_usage_percent: f32,
-    pub memory_used_mb: u64,
-    pub memory_total_mb: u64,
-    pub uptime_secs: u64,
-    pub load_average: Option<[f64; 3]>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct EngineInstance {
+pub struct EngineInfo {
     pub name: String,
     pub version: String,
     pub id: String,
     pub workflow_types: Vec<String>,
     pub workflow_type_versions: Vec<String>,
-    pub backend: String,
-    pub cpu_usage_percent: Option<f32>,
-    pub ram_used_mb: Option<u64>,
-    pub runs_count: Option<i64>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
-pub struct DatabaseStats {
-    pub total_runs: i64,
-    pub active_runs: i64,
+    pub backend: crate::configs::Backend,
+    pub workflow_params: crate::configs::WorkflowParamsConfig,
+    pub engine_params: crate::configs::EngineParamsConfig,
+    pub denied_params: Vec<crate::configs::DeniedParam>,
+    pub ignored_params: Option<Vec<String>>,
 }
 
 /// An object that can optionally include information about the error.

@@ -8,7 +8,6 @@ use crate::api::logs::{LogLineListResponse, LogLineResponse};
 #[openapi(
     paths(
         crate::api::service_info::get_service_info,
-        crate::api::service_info::get_stats,
         crate::api::runs::list_runs,
         crate::api::runs::create_run,
         crate::api::runs::get_run_log,
@@ -22,10 +21,20 @@ use crate::api::logs::{LogLineListResponse, LogLineResponse};
     components(
         schemas(
             common::models::ServiceInfo,
-            common::models::Stats,
-            common::models::SystemInfo,
-            common::models::EngineInstance,
-            common::models::DatabaseStats,
+            common::models::EngineInfo,
+            common::configs::WorkflowParamsConfig,
+            common::configs::WorkflowParamsStyle,
+            common::configs::WorkflowParamsMethod,
+            common::configs::WorkflowParamsFormat,
+            common::configs::EngineParamsConfig,
+            common::configs::UnknownBehavior,
+            common::configs::EngineParam,
+            common::configs::ParamType,
+            common::configs::BooleanStyle,
+            common::configs::Validation,
+            common::configs::DeniedParam,
+            common::configs::MatchType,
+            common::configs::Backend,
             common::models::WorkflowTypeVersion,
             common::models::WorkflowEngineVersion,
             common::models::DefaultWorkflowEngineParameter,
@@ -42,7 +51,6 @@ use crate::api::logs::{LogLineListResponse, LogLineResponse};
     ),
     tags(
         (name = "Service Info", description = "Service information endpoints"),
-        (name = "Stats", description = "System and engine statistics"),
         (name = "Runs", description = "Workflow run management endpoints"),
     ),
     info(

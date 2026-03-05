@@ -3,9 +3,7 @@ use std::sync::Arc;
 use common::configs::EngineConfig;
 use redis::AsyncCommands;
 use redis::aio::MultiplexedConnection;
-use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 use tokio::sync::Mutex;
-use tokio::time::sleep;
 
 use crate::error::EngineResult;
 
@@ -13,18 +11,16 @@ use crate::error::EngineResult;
 pub struct Valkey {
     conn: Arc<Mutex<MultiplexedConnection>>,
     pub engine_config: Arc<EngineConfig>,
-    ttl: u64,
 }
 
 impl Valkey {
-    pub async fn new(url: &str, engine_config: EngineConfig, ttl: u64) -> EngineResult<Self> {
+    pub async fn new(url: &str, engine_config: EngineConfig) -> EngineResult<Self> {
         let client = redis::Client::open(url)?;
         let conn = client.get_multiplexed_async_connection().await?;
 
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
             engine_config: Arc::new(engine_config),
-            ttl,
         })
     }
 
@@ -45,89 +41,31 @@ impl Valkey {
         );
         let config_json = serde_json::to_string(&*self.engine_config)?;
 
-        let mut pipeline = redis::pipe();
-        pipeline.cmd("SETEX").arg(&config_key).arg(self.ttl).arg(config_json);
-
         let mut conn = self.conn.lock().await;
-        let _: () = pipeline.query_async(&mut *conn).await?;
-        Ok(())
-    }
-
-    pub async fn heartbeat(&self) -> EngineResult<()> {
-        let mut sys = System::new_with_specifics(
-            RefreshKind::nothing()
-                .with_cpu(CpuRefreshKind::everything())
-                .with_memory(MemoryRefreshKind::everything()),
-        );
-
-        sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
-        sys.refresh_cpu_all();
-        sys.refresh_memory();
-
-        let cpu_usage = sys.global_cpu_usage();
-        let used_ram = sys.total_memory() - sys.available_memory();
-
-        let config_key = format!(
-            "metis.engines.config.{}.{}",
-            self.engine_config.name, self.engine_config.version
-        );
-        let base = format!(
-            "metis.engines.{}:{}:{}",
-            self.engine_config.name, self.engine_config.version, self.engine_config.id
-        );
-        let cpu_key = format!("{base}.cpu");
-        let ram_key = format!("{base}.ram");
-
-        let mut conn = self.conn.lock().await;
-        let mut pipe = redis::pipe();
-        pipe.cmd("EXPIRE")
+        let _: () = redis::cmd("SET")
             .arg(&config_key)
-            .arg(self.ttl)
-            .cmd("SETEX")
-            .arg(&cpu_key)
-            .arg(self.ttl)
-            .arg(cpu_usage)
-            .cmd("SETEX")
-            .arg(&ram_key)
-            .arg(self.ttl)
-            .arg(used_ram);
-
-        let _: () = pipe.query_async(&mut *conn).await?;
+            .arg(config_json)
+            .query_async(&mut *conn)
+            .await?;
         Ok(())
     }
 
     pub async fn add_run(&self, run_id: &str) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
-
-        let engine_runs = format!(
-            "metis.engines.{}:{}:{}.runs",
-            self.engine_config.name, self.engine_config.version, self.engine_config.id
-        );
         // Direct reverse-index for O(1) engine lookup during cancel
         let run_engine_index = format!("metis.runs.{}.engine", run_id);
-
-        let mut pipe = redis::pipe();
-        pipe.cmd("INCR").arg(&engine_runs);
-        pipe.cmd("SET").arg(&run_engine_index).arg(self.engine_config.id.to_string());
-
-        let _: () = pipe.query_async(&mut *conn).await?;
+        let _: () = redis::cmd("SET")
+            .arg(&run_engine_index)
+            .arg(self.engine_config.id.to_string())
+            .query_async(&mut *conn)
+            .await?;
         Ok(())
     }
 
     pub async fn remove_run(&self, run_id: &str) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
-
-        let engine_runs = format!(
-            "metis.engines.{}:{}:{}.runs",
-            self.engine_config.name, self.engine_config.version, self.engine_config.id
-        );
         let run_engine_index = format!("metis.runs.{}.engine", run_id);
-
-        let mut pipe = redis::pipe();
-        pipe.cmd("DECR").arg(&engine_runs);
-        pipe.cmd("DEL").arg(&run_engine_index);
-
-        let _: () = pipe.query_async(&mut *conn).await?;
+        let _: () = redis::cmd("DEL").arg(&run_engine_index).query_async(&mut *conn).await?;
         Ok(())
     }
 
@@ -154,7 +92,7 @@ impl Valkey {
 }
 
 #[tokio::test]
-async fn test_valkey_register_and_heartbeat() -> EngineResult<()> {
+async fn test_valkey_register() -> EngineResult<()> {
     let valkey = Valkey::new(
         "redis://127.0.0.1:6379",
         common::configs::EngineConfig {
@@ -183,12 +121,10 @@ async fn test_valkey_register_and_heartbeat() -> EngineResult<()> {
             denied_params: vec![],
             ignored_params: None,
         },
-        30,
     )
     .await?;
 
     valkey.register().await?;
-    valkey.heartbeat().await?;
 
     Ok(())
 }
@@ -222,7 +158,7 @@ async fn test_valkey_add_and_remove_run() -> EngineResult<()> {
         ignored_params: None,
     };
 
-    let valkey = Valkey::new("redis://127.0.0.1:6379", engine_config.clone(), 30).await?;
+    let valkey = Valkey::new("redis://127.0.0.1:6379", engine_config.clone()).await?;
     let run_id = format!("run-{}", chrono::Utc::now().timestamp());
 
     valkey.add_run(&run_id).await?;

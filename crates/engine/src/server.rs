@@ -36,7 +36,7 @@ where
     };
 
     let valkey = match &server_config.redis_url {
-        Some(url) if !url.is_empty() => match Valkey::new(url, config.engine.clone(), 60).await {
+        Some(url) if !url.is_empty() => match Valkey::new(url, config.engine.clone()).await {
             Ok(v) => Some(Arc::new(v)),
             Err(e) => {
                 warn!(error = %e, "Redis unavailable — engine tracking disabled");

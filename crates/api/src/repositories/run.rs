@@ -31,8 +31,6 @@ pub trait RunRepository: Send + Sync {
     ) -> RepositoryResult<bool>;
     async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>>;
     async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()>;
-    async fn count_total(&self) -> RepositoryResult<i64>;
-    async fn count_active(&self) -> RepositoryResult<i64>;
 }
 
 pub struct SqlxRunRepository {
@@ -241,20 +239,6 @@ impl RunRepository for SqlxRunRepository {
             .execute(&self.pool)
             .await?;
         Ok(())
-    }
-
-    async fn count_total(&self) -> RepositoryResult<i64> {
-        let row = sqlx::query("SELECT COUNT(*) as count FROM runs").fetch_one(&self.pool).await?;
-        Ok(row.get::<i64, _>("count"))
-    }
-
-    async fn count_active(&self) -> RepositoryResult<i64> {
-        let row = sqlx::query(
-            "SELECT COUNT(*) as count FROM runs WHERE state IN ('QUEUED', 'INITIALIZING', 'RUNNING', 'CANCELING')",
-        )
-        .fetch_one(&self.pool)
-        .await?;
-        Ok(row.get::<i64, _>("count"))
     }
 }
 

@@ -4,7 +4,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::api::{
-    cancel_run, create_run, get_run_log, get_run_status, get_service_info, get_stats, get_task,
+    cancel_run, create_run, get_run_log, get_run_status, get_service_info, get_task,
     list_log_lines, list_runs, list_tasks, stream_log_lines,
 };
 use crate::state::AppState;
@@ -12,7 +12,6 @@ use crate::state::AppState;
 pub fn get_router(app_state: AppState) -> Router {
     Router::new()
         .route("/service-info", get(get_service_info))
-        .route("/stats", get(get_stats))
         .route("/runs", get(list_runs).post(create_run))
         .route("/runs/{run_id}", get(get_run_log))
         .route("/runs/{run_id}/cancel", post(cancel_run))

@@ -24,7 +24,6 @@ sqlx = { features = [
   "runtime-tokio-rustls",
   "uuid",
 ], workspace = true }
-sysinfo = "0.33"
 thiserror = "2.0.18"
 tokio = { features = [ "full" ], workspace = true }
 tokio-stream = "0.1.18"

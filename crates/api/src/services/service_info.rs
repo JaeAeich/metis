@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use common::models::{
-    DatabaseStats, ServiceInfo, Stats, SystemInfo, WorkflowEngineVersion, WorkflowTypeVersion,
-};
-use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
-use tokio::sync::Mutex;
+use common::models::{EngineInfo, ServiceInfo, WorkflowEngineVersion, WorkflowTypeVersion};
 
 use super::ServiceResult;
 use crate::config::Config;
@@ -16,22 +12,11 @@ pub struct ServiceInfoService {
     repo: Arc<dyn RunRepository>,
     redis: Arc<RedisClient>,
     config: Config,
-    sys: Arc<Mutex<System>>,
 }
 
 impl ServiceInfoService {
     pub fn new(repo: Arc<dyn RunRepository>, redis: Arc<RedisClient>, config: Config) -> Self {
-        let sys = System::new_with_specifics(
-            RefreshKind::nothing()
-                .with_cpu(CpuRefreshKind::everything())
-                .with_memory(MemoryRefreshKind::everything()),
-        );
-        Self {
-            repo,
-            redis,
-            config,
-            sys: Arc::new(Mutex::new(sys)),
-        }
+        Self { repo, redis, config }
     }
 
     pub async fn get_service_info(&self) -> ServiceResult<ServiceInfo> {
@@ -77,6 +62,22 @@ impl ServiceInfoService {
             }
         }
 
+        let engines = configs
+            .into_iter()
+            .map(|c| EngineInfo {
+                name: c.name,
+                version: c.version,
+                id: c.id.to_string(),
+                workflow_types: c.workflow_types,
+                workflow_type_versions: c.workflow_type_versions,
+                backend: c.backend,
+                workflow_params: c.workflow_params,
+                engine_params: c.engine_params,
+                denied_params: c.denied_params,
+                ignored_params: c.ignored_params,
+            })
+            .collect();
+
         Ok(ServiceInfo {
             workflow_type_versions,
             supported_wes_versions: vec!["1.1.0".to_string()],
@@ -94,49 +95,7 @@ impl ServiceInfoService {
                 ("environment".to_string(), self.config.environment.clone()),
                 ("service".to_string(), self.config.service_name.clone()),
             ]),
-        })
-    }
-
-    pub async fn get_stats(&self) -> ServiceResult<Stats> {
-        let total_runs = self.repo.count_total().await?;
-        let active_runs = self.repo.count_active().await?;
-        let engines = self.redis.list_running_engines().await;
-        let system = self.get_system_info().await;
-
-        Ok(Stats {
-            system,
-            database: DatabaseStats { total_runs, active_runs },
             engines,
         })
-    }
-
-    async fn get_system_info(&self) -> SystemInfo {
-        let mut sys = self.sys.lock().await;
-
-        // First refresh to establish baseline, then sleep for delta measurement
-        sys.refresh_cpu_all();
-        sys.refresh_memory();
-        tokio::time::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
-        sys.refresh_cpu_all();
-        sys.refresh_memory();
-
-        let cpu_usage = sys.global_cpu_usage();
-        let total_memory = sys.total_memory() / 1024 / 1024;
-        let used_memory = sys.used_memory() / 1024 / 1024;
-
-        drop(sys);
-
-        let uptime = System::uptime();
-
-        let load_avg = System::load_average();
-        let load_average = Some([load_avg.one, load_avg.five, load_avg.fifteen]);
-
-        SystemInfo {
-            cpu_usage_percent: cpu_usage,
-            memory_used_mb: used_memory,
-            memory_total_mb: total_memory,
-            uptime_secs: uptime,
-            load_average,
-        }
     }
 }

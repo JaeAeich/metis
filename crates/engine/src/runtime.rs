@@ -89,16 +89,6 @@ impl EngineRuntime {
                 "Registering engine in Valkey"
             );
             valkey.register().await?;
-
-            let valkey = Arc::clone(valkey);
-            tokio::spawn(async move {
-                loop {
-                    if let Err(e) = valkey.heartbeat().await {
-                        warn!(error = %e, "Failed to update engine heartbeat");
-                    }
-                    tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
-                }
-            });
         }
 
         let Some(nats) = &self.nats else {
