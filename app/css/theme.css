@@ -309,11 +309,24 @@ body {
 
 /* ── Pagination ──────────────────────────────────────────────────────────── */
 
+.runs-container {
+  padding-bottom: 70px;
+}
+
 .pagination {
-  margin-top: 1.5rem;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  padding: 0.75rem 2rem;
   display: flex;
   gap: 0.5rem;
   justify-content: center;
+  align-items: center;
+  min-height: 50px;
+  flex-wrap: wrap;
+  z-index: 100;
 }
 
 .pagination button {
@@ -324,6 +337,9 @@ body {
   color: var(--text);
   cursor: pointer;
   transition: all 0.2s;
+  font-family: inherit;
+  font-size: 0.875rem;
+  min-width: 40px;
 }
 
 .pagination button:hover:not(:disabled) {
@@ -335,6 +351,26 @@ body {
 .pagination button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.pagination button.active {
+  background: var(--custom-primary);
+  color: white;
+  border-color: var(--custom-primary);
+  font-weight: 600;
+}
+
+.pagination-ellipsis {
+  padding: 0.5rem 0.75rem;
+  color: var(--text-light);
+  user-select: none;
+}
+
+.pagination-info {
+  padding: 0.5rem 1rem;
+  color: var(--text-light);
+  font-size: 0.875rem;
+  white-space: nowrap;
 }
 
 /* ── Run detail header ───────────────────────────────────────────────────── */
