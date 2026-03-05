@@ -1,6 +1,6 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use axum::response::sse::{Event, Sse};
+use axum::response::sse::{Event, KeepAlive, Sse};
 use common::models::{
     RunId as RunIdModel, RunListResponse, RunLog, RunRequest, RunStatus, State as RunState,
 };
@@ -160,9 +160,8 @@ pub async fn stream_run_status(
             match app.services.runs.find_by_id(&id).await {
                 Ok(Some(run)) => {
                     let current_state = run.state;
-                    let state_changed = last_state != Some(current_state);
 
-                    if state_changed || last_state.is_none() {
+                    if last_state != Some(current_state) {
                         let status = RunStatus {
                             run_id: run.id.into_inner(),
                             state: Some(current_state),
@@ -202,7 +201,8 @@ pub async fn stream_run_status(
         }
     });
 
-    Ok(Sse::new(ReceiverStream::new(rx)))
+    Ok(Sse::new(ReceiverStream::new(rx))
+        .keep_alive(KeepAlive::new().interval(std::time::Duration::from_secs(15))))
 }
 
 #[utoipa::path(

@@ -314,7 +314,6 @@ async function _loadRun(runId) {
     const run = await runRes.json();
     renderRunHeader(run);
     renderOverview(run);
-    renderTasks(tasks);
     connectStatusStream();
   } catch (err) {
     document.getElementById("overview-content").innerHTML =
@@ -579,7 +578,7 @@ function connectStatusStream() {
   statusEventSource.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      const badge = document.querySelector(".status-badge");
+      const badge = document.getElementById("run-state-badge");
       if (badge) {
         badge.className = `status-badge ${getStatusClass(data.state)}`;
         badge.textContent = data.state;
@@ -587,7 +586,15 @@ function connectStatusStream() {
 
       if (DELETABLE_STATES.has(data.state)) {
         statusEventSource.close();
-        _loadRun(currentRunId);
+        statusEventSource = null;
+        renderRunHeader({ state: data.state });
+        // Refresh tasks once run reaches terminal state
+        fetch(`${API_BASE}/runs/${encodeURIComponent(currentRunId)}/tasks`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((tasks) => {
+            if (tasks) renderTasks(tasks);
+          })
+          .catch(() => {});
       }
     } catch (e) {
       console.error("Failed to parse status update:", e);
@@ -595,7 +602,10 @@ function connectStatusStream() {
   };
 
   statusEventSource.onerror = () => {
+    if (!statusEventSource || statusEventSource.readyState === EventSource.CLOSED) return;
     console.log("Status SSE connection lost, reconnecting...");
+    statusEventSource.close();
+    statusEventSource = null;
     setTimeout(connectStatusStream, 3000);
   };
 }
