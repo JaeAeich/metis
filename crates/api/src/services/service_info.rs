@@ -3,7 +3,8 @@ use std::sync::Arc;
 use common::models::{
     DatabaseStats, ServiceInfo, Stats, SystemInfo, WorkflowEngineVersion, WorkflowTypeVersion,
 };
-use sysinfo::System;
+use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
+use tokio::sync::Mutex;
 
 use super::ServiceResult;
 use crate::config::Config;
@@ -15,11 +16,22 @@ pub struct ServiceInfoService {
     repo: Arc<dyn RunRepository>,
     redis: Arc<RedisClient>,
     config: Config,
+    sys: Arc<Mutex<System>>,
 }
 
 impl ServiceInfoService {
     pub fn new(repo: Arc<dyn RunRepository>, redis: Arc<RedisClient>, config: Config) -> Self {
-        Self { repo, redis, config }
+        let sys = System::new_with_specifics(
+            RefreshKind::nothing()
+                .with_cpu(CpuRefreshKind::everything())
+                .with_memory(MemoryRefreshKind::everything()),
+        );
+        Self {
+            repo,
+            redis,
+            config,
+            sys: Arc::new(Mutex::new(sys)),
+        }
     }
 
     pub async fn get_service_info(&self) -> ServiceResult<ServiceInfo> {
@@ -79,8 +91,8 @@ impl ServiceInfoService {
             system_state_counts: state_counts,
             auth_instructions_url: self.config.auth_instructions_url.clone(),
             tags: std::collections::HashMap::from([
-                ("environment".to_string(), "production".to_string()),
-                ("service".to_string(), "metis-api".to_string()),
+                ("environment".to_string(), self.config.environment.clone()),
+                ("service".to_string(), self.config.service_name.clone()),
             ]),
         })
     }
@@ -89,7 +101,7 @@ impl ServiceInfoService {
         let total_runs = self.repo.count_total().await?;
         let active_runs = self.repo.count_active().await?;
         let engines = self.redis.list_running_engines().await;
-        let system = self.get_system_info();
+        let system = self.get_system_info().await;
 
         Ok(Stats {
             system,
@@ -98,22 +110,26 @@ impl ServiceInfoService {
         })
     }
 
-    fn get_system_info(&self) -> SystemInfo {
-        let mut sys = System::new_all();
-        sys.refresh_all();
+    async fn get_system_info(&self) -> SystemInfo {
+        let mut sys = self.sys.lock().await;
+
+        // First refresh to establish baseline, then sleep for delta measurement
+        sys.refresh_cpu_all();
+        sys.refresh_memory();
+        tokio::time::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
+        sys.refresh_cpu_all();
+        sys.refresh_memory();
 
         let cpu_usage = sys.global_cpu_usage();
         let total_memory = sys.total_memory() / 1024 / 1024;
         let used_memory = sys.used_memory() / 1024 / 1024;
 
+        drop(sys);
+
         let uptime = System::uptime();
 
         let load_avg = System::load_average();
-        let load_average = if load_avg.one != 0.0 {
-            Some([load_avg.one, load_avg.five, load_avg.fifteen])
-        } else {
-            None
-        };
+        let load_average = Some([load_avg.one, load_avg.five, load_avg.fifteen]);
 
         SystemInfo {
             cpu_usage_percent: cpu_usage,

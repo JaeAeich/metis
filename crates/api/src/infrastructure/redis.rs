@@ -35,143 +35,161 @@ impl RedisClient {
     }
 
     pub async fn list_engine_configs(&self) -> Vec<EngineConfig> {
-        let mut conn = self.conn.lock().await;
-        let pattern = "metis.engines.config.*.*";
-        let mut configs = Vec::new();
-        let mut cursor: u64 = 0;
-
-        loop {
-            let result: Result<(u64, Vec<String>), _> = redis::cmd("SCAN")
-                .arg(cursor)
-                .arg("MATCH")
-                .arg(pattern)
-                .query_async(&mut *conn)
-                .await;
-
-            match result {
-                Ok((new_cursor, keys)) => {
-                    for key in keys {
-                        let config_json: Result<String, _> =
-                            redis::cmd("GET").arg(&key).query_async(&mut *conn).await;
-                        if let Some(json) = config_json.ok()
-                            && let Ok(config) = serde_json::from_str::<EngineConfig>(&json)
-                        {
-                            configs.push(config);
-                        }
-                    }
-                    cursor = new_cursor;
-                    if cursor == 0 {
-                        break;
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!(error = %e, "Failed to scan engine configs");
-                    break;
-                },
-            }
+        // Phase 1: collect all keys via SCAN
+        let keys = self.scan_keys("metis.engines.config.*.*").await;
+        if keys.is_empty() {
+            return vec![];
         }
 
-        configs
+        // Phase 2: MGET all keys in one round-trip
+        let mut conn = self.conn.lock().await;
+        let values: Vec<Option<String>> =
+            redis::cmd("MGET").arg(&keys).query_async(&mut *conn).await.unwrap_or_default();
+        drop(conn);
+
+        values
+            .into_iter()
+            .flatten()
+            .filter_map(|json| serde_json::from_str::<EngineConfig>(&json).ok())
+            .collect()
     }
 
     pub async fn list_running_engines(&self) -> Vec<EngineInstance> {
+        // Phase 1: collect cpu keys via SCAN to find running instances
+        let cpu_keys = self.scan_keys("metis.engines.*:*:*.cpu").await;
+        if cpu_keys.is_empty() {
+            return vec![];
+        }
+
+        // Parse instance identifiers and deduplicate
+        let mut unique_instances: HashMap<String, (String, String, String)> = HashMap::new();
+        for key in &cpu_keys {
+            if let Some((name, version, id)) = Self::parse_engine_instance_key(key) {
+                let instance_key = format!("{}:{}:{}", name, version, id);
+                unique_instances.entry(instance_key).or_insert((name, version, id));
+            }
+        }
+
+        if unique_instances.is_empty() {
+            return vec![];
+        }
+
+        // Phase 2: batch-fetch all metrics + config keys via pipeline
+        let mut metric_keys: Vec<String> = Vec::new();
+        let mut config_keys: Vec<String> = Vec::new();
+        // Maintain order for result mapping
+        let ordered: Vec<(String, String, String, String)> = unique_instances
+            .into_values()
+            .map(|(name, version, id)| {
+                let base = format!("metis.engines.{}:{}:{}", name, version, id);
+                let cfg_key = format!("metis.engines.config.{}.{}", name, version);
+                metric_keys.push(format!("{base}.cpu"));
+                metric_keys.push(format!("{base}.ram"));
+                metric_keys.push(format!("{base}.runs"));
+                config_keys.push(cfg_key.clone());
+                (name, version, id, cfg_key)
+            })
+            .collect();
+
+        let all_keys: Vec<&str> = metric_keys
+            .iter()
+            .map(|s| s.as_str())
+            .chain(config_keys.iter().map(|s| s.as_str()))
+            .collect();
+
         let mut conn = self.conn.lock().await;
-        let pattern = "metis.engines.*:*:*.cpu";
+        let values: Vec<Option<String>> = redis::cmd("MGET")
+            .arg(&all_keys)
+            .query_async(&mut *conn)
+            .await
+            .unwrap_or_default();
+        drop(conn);
+
+        let n = ordered.len();
+        let mut configs_cache: HashMap<String, Option<EngineConfig>> = HashMap::new();
+
+        // Config values start after n*3 metric values
+        for (i, (_, _, _, cfg_key)) in ordered.iter().enumerate() {
+            let cfg_val = values
+                .get(n * 3 + i)
+                .and_then(|v| v.as_deref())
+                .and_then(|json| serde_json::from_str::<EngineConfig>(json).ok());
+            configs_cache.insert(cfg_key.clone(), cfg_val);
+        }
+
+        ordered
+            .into_iter()
+            .enumerate()
+            .map(|(i, (name, version, id, cfg_key))| {
+                let base_idx = i * 3;
+                let cpu: Option<f32> =
+                    values.get(base_idx).and_then(|v| v.as_deref()).and_then(|s| s.parse().ok());
+                let ram: Option<u64> = values
+                    .get(base_idx + 1)
+                    .and_then(|v| v.as_deref())
+                    .and_then(|s| s.parse().ok());
+                let runs: Option<i64> = values
+                    .get(base_idx + 2)
+                    .and_then(|v| v.as_deref())
+                    .and_then(|s| s.parse().ok());
+
+                let config = configs_cache.get(&cfg_key).and_then(|c| c.as_ref());
+                let (workflow_types, workflow_type_versions, backend) =
+                    config.map_or((vec![], vec![], "unknown".to_string()), |c| {
+                        (
+                            c.workflow_types.clone(),
+                            c.workflow_type_versions.clone(),
+                            format!("{:?}", c.backend).to_lowercase(),
+                        )
+                    });
+
+                EngineInstance {
+                    name,
+                    version,
+                    id,
+                    workflow_types,
+                    workflow_type_versions,
+                    backend,
+                    cpu_usage_percent: cpu,
+                    ram_used_mb: ram.map(|b| b / 1024 / 1024),
+                    runs_count: runs,
+                }
+            })
+            .collect()
+    }
+
+    /// SCAN all keys matching a pattern, releasing the lock between iterations.
+    async fn scan_keys(&self, pattern: &str) -> Vec<String> {
+        let mut all_keys = Vec::new();
         let mut cursor: u64 = 0;
-        let mut instances: HashMap<String, EngineInstance> = HashMap::new();
-        let mut configs_cache: HashMap<(String, String), Option<EngineConfig>> = HashMap::new();
 
         loop {
-            let result: Result<(u64, Vec<String>), _> = redis::cmd("SCAN")
-                .arg(cursor)
-                .arg("MATCH")
-                .arg(pattern)
-                .query_async(&mut *conn)
-                .await;
+            let result: Result<(u64, Vec<String>), _> = {
+                let mut conn = self.conn.lock().await;
+                redis::cmd("SCAN")
+                    .arg(cursor)
+                    .arg("MATCH")
+                    .arg(pattern)
+                    .query_async(&mut *conn)
+                    .await
+            };
 
             match result {
                 Ok((new_cursor, keys)) => {
-                    for key in keys {
-                        if let Some((name, version, id)) = Self::parse_engine_instance_key(&key) {
-                            let instance_key = format!("{}:{}:{}", name, version, id);
-                            if let std::collections::hash_map::Entry::Vacant(e) =
-                                instances.entry(instance_key)
-                            {
-                                let base = format!("metis.engines.{}:{}:{}", name, version, id);
-                                let cpu_key = format!("{}.cpu", base);
-                                let ram_key = format!("{}.ram", base);
-                                let runs_key = format!("{}.runs", base);
-
-                                let cpu: Option<f32> = redis::cmd("GET")
-                                    .arg(&cpu_key)
-                                    .query_async(&mut *conn)
-                                    .await
-                                    .ok();
-                                let ram: Option<u64> = redis::cmd("GET")
-                                    .arg(&ram_key)
-                                    .query_async(&mut *conn)
-                                    .await
-                                    .ok();
-                                let runs: Option<i64> = redis::cmd("GET")
-                                    .arg(&runs_key)
-                                    .query_async(&mut *conn)
-                                    .await
-                                    .ok();
-
-                                let config_key = (name.clone(), version.clone());
-                                let config = if let Some(c) = configs_cache.get(&config_key) {
-                                    c.clone()
-                                } else {
-                                    let cfg_key =
-                                        format!("metis.engines.config.{}.{}", name, version);
-                                    let config_json: Result<String, _> = redis::cmd("GET")
-                                        .arg(&cfg_key)
-                                        .query_async(&mut *conn)
-                                        .await;
-                                    let cfg = config_json
-                                        .ok()
-                                        .and_then(|json| serde_json::from_str(&json).ok());
-                                    configs_cache.insert(config_key.clone(), cfg.clone());
-                                    cfg
-                                };
-
-                                let (workflow_types, workflow_type_versions, backend) = config
-                                    .as_ref()
-                                    .map_or((vec![], vec![], "unknown".to_string()), |c| {
-                                        (
-                                            c.workflow_types.clone(),
-                                            c.workflow_type_versions.clone(),
-                                            format!("{:?}", c.backend).to_lowercase(),
-                                        )
-                                    });
-
-                                e.insert(EngineInstance {
-                                    name,
-                                    version,
-                                    id,
-                                    workflow_types,
-                                    workflow_type_versions,
-                                    backend,
-                                    cpu_usage_percent: cpu,
-                                    ram_used_mb: ram.map(|b| b / 1024 / 1024),
-                                    runs_count: runs,
-                                });
-                            }
-                        }
-                    }
+                    all_keys.extend(keys);
                     cursor = new_cursor;
                     if cursor == 0 {
                         break;
                     }
                 },
                 Err(e) => {
-                    tracing::warn!(error = %e, "Failed to scan running engines");
+                    tracing::warn!(error = %e, pattern, "Failed to scan keys");
                     break;
                 },
             }
         }
 
-        instances.into_values().collect()
+        all_keys
     }
 
     fn parse_engine_instance_key(key: &str) -> Option<(String, String, String)> {
