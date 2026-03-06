@@ -13,7 +13,7 @@ pub struct ServerConfig {
 }
 
 fn default_notification_subject() -> String {
-    "metis.notification".into()
+    common::keys::nats_notification_subject().to_string()
 }
 
 impl ServerConfig {

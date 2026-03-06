@@ -68,12 +68,11 @@ impl RunService {
             user_id: user_id.to_string(),
         };
 
-        let topic = format!(
-            "metis.runs.{}.{}.{}.{}",
-            req.workflow_engine,
-            req.workflow_engine_version,
-            req.workflow_type,
-            req.workflow_type_version
+        let topic = common::keys::nats_run_subject(
+            &req.workflow_engine,
+            &req.workflow_engine_version,
+            &req.workflow_type,
+            &req.workflow_type_version,
         );
 
         self.nats.publish_run(&topic, &message).await.map_err(ServiceError::Messaging)?;

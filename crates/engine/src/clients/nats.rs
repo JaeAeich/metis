@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_nats::{Client, Subscriber};
 use common::configs::EngineConfig;
+use common::keys;
 
 use crate::error::{EngineError, EngineResult};
 
@@ -46,9 +47,11 @@ impl Nats {
             .iter()
             .flat_map(|language| {
                 self.engine_config.workflow_type_versions.iter().map(move |version| {
-                    format!(
-                        "metis.runs.{}.{}.{}.{}",
-                        self.engine_config.name, self.engine_config.version, language, version
+                    keys::nats_run_subject(
+                        &self.engine_config.name,
+                        &self.engine_config.version,
+                        language,
+                        version,
                     )
                 })
             })
@@ -56,7 +59,7 @@ impl Nats {
     }
 
     pub fn cancel_topic(&self) -> String {
-        format!("metis.cancel.{}", self.engine_config.id)
+        keys::nats_cancel_subject(&self.engine_config.id.to_string())
     }
 
     pub async fn subscribe_runs(&self) -> EngineResult<Vec<Subscriber>> {

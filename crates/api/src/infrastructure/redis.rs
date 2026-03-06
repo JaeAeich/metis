@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use common::configs::EngineConfig;
+use common::keys;
 use redis::aio::MultiplexedConnection;
 use tokio::sync::Mutex;
 
@@ -17,7 +18,7 @@ impl RedisClient {
     }
 
     pub async fn get_assigned_engine(&self, run_id: &str) -> Option<String> {
-        let key = format!("metis.runs.{}.engine", run_id);
+        let key = keys::valkey_run_engine(run_id);
         let mut conn = self.conn.lock().await;
         let engine_id: Result<String, _> =
             redis::cmd("GET").arg(&key).query_async(&mut *conn).await;
@@ -25,7 +26,7 @@ impl RedisClient {
     }
 
     pub async fn get_engine_config(&self, name: &str, version: &str) -> Option<EngineConfig> {
-        let key = format!("metis.engines.config.{}.{}", name, version);
+        let key = keys::valkey_engine_config(name, version);
         let mut conn = self.conn.lock().await;
         let config_json: Result<String, _> =
             redis::cmd("GET").arg(&key).query_async(&mut *conn).await;
@@ -34,7 +35,7 @@ impl RedisClient {
 
     pub async fn list_engine_configs(&self) -> Vec<EngineConfig> {
         // Phase 1: collect all keys via SCAN
-        let keys = self.scan_keys("metis.engines.config.*.*").await;
+        let keys = self.scan_keys(common::keys::valkey_engine_config_pattern()).await;
         if keys.is_empty() {
             return vec![];
         }
