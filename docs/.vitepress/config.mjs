@@ -13,13 +13,31 @@ export default withMermaid(
             logo: "/web-app-manifest-512x512.png",
             nav: [
                 { text: "Home", link: "/" },
-                { text: "Introduction", link: "/intro" },
+                { text: "Docs", link: "/intro" },
+                { text: "API", link: "/api-reference" },
                 { text: "GitHub", link: "https://github.com/jaeaeich/metis" },
             ],
             sidebar: [
                 {
                     text: "Getting Started",
-                    items: [{ text: "Introduction", link: "/intro" }],
+                    items: [
+                        { text: "Introduction", link: "/intro" },
+                        { text: "Quick Start", link: "/getting-started" },
+                    ],
+                },
+                {
+                    text: "Guides",
+                    items: [
+                        { text: "Engine Configuration", link: "/engine-configuration" },
+                        { text: "Deployment", link: "/deployment" },
+                    ],
+                },
+                {
+                    text: "Reference",
+                    items: [
+                        { text: "API Reference", link: "/api-reference" },
+                        { text: "Architecture", link: "/architecture" },
+                    ],
                 },
             ],
             search: {
