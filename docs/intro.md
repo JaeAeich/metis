@@ -5,139 +5,65 @@
 </div>
 
 ::: warning Development Status
-Metis is under active development. The docs may lag behind the current
-implementation and behavior.
+Metis is under active development. The docs may lag behind the current implementation.
 :::
 
 ## What is Metis?
 
-Metis is a **WES 1.1.0 compliant** workflow execution service written
-in **Rust** for memory safety, fearless concurrency, and high performance.
-It orchestrates scientific and data-intensive workflows through a pluggable,
-async-first architecture.
+Metis is a **GA4GH WES 1.1.0** compliant Workflow Execution Service written in **Rust**. It provides a standardised HTTP API for submitting, monitoring, and cancelling workflow runs across any supported workflow engine — Nextflow, Snakemake, CWL, WDL, and more.
 
-## Architecture
+### Design Principles
 
-Metis is built around three decoupled layers with async messaging and health monitoring:
+- **Decoupled API and engine** — the HTTP layer never executes workflows. Submission and execution are separated by NATS.
+- **Pluggable via trait** — adding a new engine requires implementing a single Rust trait, nothing in the core API changes.
+- **Config-driven** — engine behaviour (command template, parameter validation, denied flags, workdir layout) is entirely controlled by `engine.yaml`. No code changes required for a new engine variant.
+- **Spec compliant** — follows GA4GH WES 1.1.0 with extensions for SSE streaming and log pagination.
+
+## Architecture Overview
 
 ```mermaid
-flowchart TB
-    subgraph API["API Layer"]
-        direction TB
-        A[WES API]
-    end
-
-    subgraph MQ["Message Broker"]
-        N[NATS]
-        V[Valkey]
-    end
-
-    subgraph Engine["Engine Runtime"]
-        direction TB
-        O[Orchestrator]
-    end
-
-    subgraph Plugins["Plugin Layer"]
-        P1[Nextflow]
-        P2[Snakemake]
-        P3[CWL/WDL]
-    end
-
-    subgraph Exec["Execution Backends"]
-        E1[Kubernetes]
-        E2[HPC / SLURM]
-        E3[Local / Cloud]
-    end
-
-    A -->|"Job Queue"| N
-    N --> O
-    O --> P1 & P2 & P3
-    P1 & P2 & P3 --> E1 & E2 & E3
-    P1 & P2 & P3 -->|"Heartbeat"| V
-    V -->|"Health Status"| A
+graph TD
+    Client -->|HTTP| API[Metis API :8080]
+    API -->|persist| PG[(PostgreSQL)]
+    API -->|publish| NATS[NATS :4222]
+    NATS -->|subscribe| Engine[Engine Runtime]
+    Engine -->|spawn| WF[Workflow Process]
+    Engine -->|state/PIDs| Valkey[(Valkey :6379)]
+    Engine -->|write logs/state| PG
+    API -->|read status/logs| PG
 ```
 
-### Communication Patterns
+Three decoupled layers:
 
-| Channel    | Purpose                                                     |
-|------------|-------------------------------------------------------------|
-| **NATS**   | Async job submission, status updates, log streaming         |
-| **Valkey** | Plugin heartbeats, execution state, health registry         |
+| Layer | Component | Role |
+| ----- | --------- | ---- |
+| **HTTP** | `metis-api` | Validates requests, serves status/logs, handles cancellation |
+| **Messaging** | NATS | Async job queue — decouples submission from execution |
+| **Execution** | Engine Runtime | Builds CLI, spawns process, captures output, tracks state |
 
-### Health Monitoring
+## Supported Workflow Engines
 
-Each plugin maintains a heartbeat in Valkey:
+| Engine | Workflow Type | Versions |
+| ------ | ------------- | -------- |
+| Nextflow | `NFL` | DSL2 |
+| *(extensible)* | any | via trait |
+
+Any binary that can be invoked as a subprocess can be wrapped as a Metis engine — configure `commandTemplate` in `engine.yaml` and start `metis-engine-generic`.
+
+## Run States
+
+Runs follow the WES state machine:
 
 ```text
-plugin:nextflow:heartbeat → timestamp (TTL: 30s)
-plugin:snakemake:heartbeat → timestamp (TTL: 30s)
+QUEUED → INITIALIZING → RUNNING → COMPLETE
+                              ↘ EXECUTOR_ERROR
+                              ↘ CANCELED
+                              ↘ SYSTEM_ERROR
 ```
 
-If a heartbeat expires, the API marks that execution service as **unhealthy** and:
+## Next Steps
 
-- Stops routing new jobs to that plugin
-- Alerts operators via configured channels
-- Optionally triggers plugin restart
-
-### Execution Abstraction
-
-Plugins delegate compute to execution backends:
-
-```text
-Plugin (Nextflow)
-    │
-    ├── KubernetesExecutor → K8s Jobs / Argo / Volcano
-    ├── HPCExecutor        → SLURM / PBS / SGE
-    ├── LocalExecutor      → Direct subprocess
-    └── CloudExecutor      → AWS Batch / GCP Life Sciences
-```
-
-Same engine, different infrastructure - configured, not coded. This
-is not directly handled by Metis and is a function of underlying
-workflow engines support.
-
-### Core Engine
-
-The **engine crate** is the heart of Metis - a highly configurable process
-manager that:
-
-- **Validates** WES requests against engine-defined schemas
-- **Builds** CLI commands from template configurations
-- **Orchestrates** workflow lifecycle (staging → execution → cleanup)
-- **Tracks** state through NATS pub/sub and Valkey storage
-
-### Plugin System
-
-Engines implement the `Engine` trait, defining how to:
-
-1. Build execution commands from WES requests
-2. Parse and return workflow results
-3. Stream task logs
-
-Adding a new engine requires only implementing this trait - no core
-modifications needed.
-
-### Configuration
-
-All engine behavior is externalized to `engine.yaml`:
-
-```yaml
-engine:
-  name: nextflow
-  command_template: "nextflow run {workflow_path} {engine_params}"
-  validation:
-    workflow_type: [NEXTFLOW]
-    required_params: [pipeline]
-```
-
-This template-driven approach enables zero-code customization of CLI building,
-validation rules, and runtime behavior.
-
-## Request Lifecycle
-
-1. **Submit** → API receives WES request, publishes to NATS
-2. **Validate** → Engine validates against configured schema
-3. **Stage** → Working directory created, inputs resolved
-4. **Execute** → CLI command built from template, subprocess spawned
-5. **Track** → Status updates published, logs captured
-6. **Complete** → Results returned via `get_workflow_results()`
+- [Quick Start](/getting-started) — run Metis locally in minutes
+- [Engine Configuration](/engine-configuration) — full `engine.yaml` reference
+- [API Reference](/api-reference) — all endpoints
+- [Architecture](/architecture) — deep dive into components and message flow
