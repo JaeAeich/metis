@@ -46,7 +46,7 @@ pub fn nats_run_subject(
 }
 
 /// Subject for sending a cancel command to a specific engine instance.
-pub fn nats_cancel_subject(engine_id: &str) -> String {
+pub fn nats_cancel_subject(engine_id: impl std::fmt::Display) -> String {
     format!("metis.cancel.{}", engine_id)
 }
 

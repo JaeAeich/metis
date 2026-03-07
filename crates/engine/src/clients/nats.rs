@@ -59,7 +59,7 @@ impl Nats {
     }
 
     pub fn cancel_topic(&self) -> String {
-        keys::nats_cancel_subject(&self.engine_config.id.to_string())
+        keys::nats_cancel_subject(self.engine_config.id)
     }
 
     pub async fn subscribe_runs(&self) -> EngineResult<Vec<Subscriber>> {
