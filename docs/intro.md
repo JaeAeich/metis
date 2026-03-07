@@ -10,7 +10,7 @@ Metis is under active development. The docs may lag behind the current implement
 
 ## What is Metis?
 
-Metis is a **GA4GH WES 1.1.0** compliant Workflow Execution Service written in **Rust**. It provides a standardised HTTP API for submitting, monitoring, and cancelling workflow runs across any supported workflow engine — Nextflow, Snakemake, CWL, WDL, and more.
+Metis is a **GA4GH WES 1.1.0** compliant Workflow Execution Service written in **Rust**. It provides a standardised HTTP API for submitting, monitoring, and cancelling workflow runs across any engine.
 
 ### Design Principles
 

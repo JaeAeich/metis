@@ -4,7 +4,7 @@ layout: home
 
 hero:
   name: Metis
-  text: Kubernetes-native Workflow Execution Service
+  text: Workflow Execution Service
   tagline: Async-first, trait-based plugins, template-driven configuration
   image:
     src: /web-app-manifest-512x512.png
