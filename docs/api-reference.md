@@ -6,15 +6,11 @@ extending it with SSE streaming, log pagination, and soft-delete.
 The interactive API docs are available at `http://<host>:<port>/docs` when the API is running.
 All request and response schemas are documented there.
 
----
-
 ## Base URL
 
 ```text
 http://localhost:8080
 ```
-
----
 
 ## What You Can Do
 
@@ -31,8 +27,6 @@ http://localhost:8080
 | `GET /runs/{id}/logs` | Paginated stdout/stderr lines |
 | `GET /runs/{id}/logs/stream` | SSE stream of log lines as they are written |
 | `GET /runs/{id}/tasks` | Per-task execution records (for supported engines) |
-
----
 
 ## Highlights
 
@@ -53,8 +47,6 @@ Two SSE endpoints let you subscribe to live updates without polling:
 `POST /runs/{id}/cancel` sends SIGTERM to the workflow process. Returns `409` if the run has already
 reached a terminal state.
 
----
-
 ## Run States
 
 | State | Description |
@@ -66,8 +58,6 @@ reached a terminal state.
 | `EXECUTOR_ERROR` | Exited with non-zero code |
 | `CANCELED` | Canceled via API |
 | `SYSTEM_ERROR` | Infrastructure failure |
-
----
 
 ## Error Shape
 
