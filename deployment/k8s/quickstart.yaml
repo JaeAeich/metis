@@ -1,0 +1,643 @@
+# =============================================================================
+# Metis + MinIO Kubernetes Quickstart
+# =============================================================================
+# -----------------------------------------------------------------------------
+# Nextflow work dir PVC
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextflow-work
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+# -----------------------------------------------------------------------------
+# MinIO
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:latest
+          command: ["minio", "server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              value: "root"
+            - name: MINIO_ROOT_PASSWORD
+              value: "minioroot123"
+          ports:
+            - containerPort: 9000
+            - containerPort: 9001
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
+  type: ClusterIP
+---
+# NodePort for browser access to MinIO console
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-console
+spec:
+  selector:
+    app: minio
+  ports:
+    - port: 9001
+      targetPort: 9001
+      nodePort: 30090
+  type: NodePort
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:latest
+          command:
+            - sh
+            - -c
+            - |
+              until mc alias set local http://minio:9000 root minioroot123; do
+                echo "Waiting for MinIO..."; sleep 2
+              done
+              mc mb --ignore-existing local/data
+              echo "Bucket 'data' ready."
+
+# -----------------------------------------------------------------------------
+# PostgreSQL
+# -----------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_DB
+              value: "metis"
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "password"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+# -----------------------------------------------------------------------------
+# Valkey (Redis-compatible)
+# -----------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+    spec:
+      containers:
+        - name: valkey
+          image: valkey/valkey:alpine3.22
+          command: ["valkey-server", "--requirepass", "password"]
+          ports:
+            - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey
+spec:
+  selector:
+    app: valkey
+  ports:
+    - port: 6379
+      targetPort: 6379
+
+# -----------------------------------------------------------------------------
+# NATS
+# -----------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nats
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nats
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      containers:
+        - name: nats
+          image: nats:2.12.4-alpine
+          args:
+            - "--http_port=8222"
+            - "--user=nats"
+            - "--pass=nats"
+          ports:
+            - containerPort: 4222
+            - containerPort: 8222
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+spec:
+  selector:
+    app: nats
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: monitoring
+      port: 8222
+      targetPort: 8222
+
+# -----------------------------------------------------------------------------
+# DB Migrations Job
+# -----------------------------------------------------------------------------
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: metis-db-migrations
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres -U postgres; do echo "Waiting for postgres..."; sleep 2; done
+      containers:
+        - name: migrate
+          image: metis-db-migrations:local
+          imagePullPolicy: Never
+          command:
+            - migrate
+            - -path
+            - /migrations
+            - -database
+            - postgres://postgres:password@postgres:5432/metis?sslmode=disable
+            - up
+
+# -----------------------------------------------------------------------------
+# ConfigMaps
+# -----------------------------------------------------------------------------
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: engine-config
+data:
+  engine-config.yaml: |
+    version: "1.0.0"
+    engine:
+      name: Nextflow
+      version: "25.10.4"
+      backend: local
+
+      workflowTypes:
+        - NFL
+      workflowTypeVersions:
+        - DSL2
+
+      commandTemplate: "nextflow run {workflow_path} {engine_params} {workflow_params}"
+
+      workflowParams:
+        style:
+          method: file
+          prefix: "--"
+          separator: " "
+          keyValueFormat: "{key}={value}"
+
+      engineParams:
+        unknownParamsBehavior: reject
+        validatedParams:
+          - names: ["profile", "-profile", "profiles"]
+            cliFlag: "-profile"
+            type: list
+            default: ["docker"]
+            strictDefault: false
+            required: false
+            listSeparator: ","
+            validate:
+              - type: enum
+                allowed: ["docker", "local", "k8s", "aws", "gcp", "azure", "slurm", "lsf", "uge"]
+                message: "Invalid profile"
+
+          - names: ["resume", "-resume"]
+            cliFlag: "-resume"
+            type: bool
+            default: false
+            booleanStyle: flag
+
+          - names: ["work-dir", "-work-dir", "-w"]
+            cliFlag: "-work-dir"
+            type: string
+            required: false
+            validate:
+              - type: regex
+                pattern: "^/[a-zA-Z0-9/_.-]+$"
+                message: "Invalid work directory path"
+
+          - names: ["max-cpus", "maxCpus"]
+            cliFlag: "--max-cpus"
+            type: int
+            validate:
+              - type: range
+                min: 1
+                max: 256
+
+          - names: ["max-memory", "maxMemory"]
+            cliFlag: "--max-memory"
+            type: string
+            default: "32GB"
+            validate:
+              - type: regex
+                pattern: "^[0-9]+(\\.[0-9]+)?(KB|MB|GB|TB)$"
+                message: "Memory must be like 16GB, 1.5TB"
+
+          - names: ["max-disk", "maxDisk"]
+            cliFlag: "--max-disk"
+            type: string
+            validate:
+              - type: regex
+                pattern: "^[0-9]+(\\.[0-9]+)?(KB|MB|GB|TB)$"
+
+          - names: ["output-dir", "outdir"]
+            cliFlag: "--outdir"
+            type: string
+            default: "{workdir}/outputs"
+            validate:
+              - type: regex
+                pattern: "^/[a-zA-Z0-9/_.-]+$"
+
+          - names: ["config", "-c"]
+            cliFlag: "-c"
+            type: string
+            validate:
+              - type: file_exists
+              - type: file_extension
+                allowed: [".config", ".cfg", ".conf", ".nf"]
+
+          - names: ["tower-token", "access-token", "token"]
+            cliFlag: "-with-tower"
+            type: string
+            sensitive: true
+            envVar: "TOWER_ACCESS_TOKEN"
+            validate:
+              - type: regex
+                pattern: "^[a-zA-Z0-9_.-]{10,}$"
+                message: "Invalid token format"
+
+          - names: ["revision", "-r", "tag"]
+            cliFlag: "-r"
+            type: string
+
+          - names: ["latest"]
+            cliFlag: "-latest"
+            type: bool
+            booleanStyle: flag
+
+          - names: ["cache"]
+            cliFlag: "-cache"
+            type: string
+            validate:
+              - type: enum
+                allowed: ["true", "false", "deep", "lenient"]
+
+      deniedParams:
+        - pattern: "-with-docker"
+          type: exact
+          reason: "Use profile parameter instead"
+        - pattern: "-with-singularity"
+          type: exact
+          reason: "Use profile parameter instead"
+        - pattern: "--privileged"
+          type: exact
+          reason: "Privileged mode not allowed"
+        - pattern: "--volume"
+          type: exact
+          reason: "Volume mounts managed by WES"
+        - pattern: "-v"
+          type: exact
+          reason: "Volume mounts managed by WES"
+        - pattern: "--net"
+          type: exact
+          reason: "Network configuration not allowed"
+        - pattern: "--host"
+          type: exact
+          reason: "Host configuration not allowed"
+        - pattern: ".*[;&|`$()].*"
+          type: regex
+          reason: "Shell metacharacters not allowed"
+
+    runs:
+      workdir:
+        base: "/var/wes/runs"
+        pattern: "{user_id}/{run_id}"
+        subdirs:
+          logs: "logs"
+          outputs: "outputs"
+          work: "work"
+          tmp: "tmp"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nextflow-config
+data:
+  config: |
+    plugins {
+      id 'nf-k8s'
+    }
+
+    process {
+      executor = 'k8s'
+    }
+
+    k8s {
+      namespace = 'default'
+      serviceAccount = 'nextflow'
+      storageClaimName = 'nextflow-work'
+      storageMountPath = '/workspace'
+    }
+
+    workDir = '/workspace/work'
+---
+# SCM config stored as a Secret because it contains credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nextflow-scm
+stringData:
+  scm: |
+    providers {
+      github {
+        user     = 'my-user-name'
+        token    = 'my-github-pat'
+      }
+    }
+
+# -----------------------------------------------------------------------------
+# Metis API
+# -----------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metis-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metis-api
+  template:
+    metadata:
+      labels:
+        app: metis-api
+    spec:
+      initContainers:
+        - name: wait-migrations
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until psql "postgres://postgres:password@postgres:5432/metis" \
+                -c "SELECT 1" > /dev/null 2>&1; do
+                echo "Waiting for migrations..."; sleep 3
+              done
+      containers:
+        - name: metis-api
+          image: metis-api:local
+          imagePullPolicy: Never
+          env:
+            - name: DATABASE_URL
+              value: "postgres://postgres:password@postgres:5432/metis"
+            - name: REDIS_URL
+              value: "redis://:password@valkey:6379"
+            - name: NATS_URL
+              value: "nats://nats:nats@nats:4222"
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metis-api
+spec:
+  selector:
+    app: metis-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+
+# -----------------------------------------------------------------------------
+# Metis Engine (Nextflow)
+# -----------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metis-engine-nextflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metis-engine-nextflow
+  template:
+    metadata:
+      labels:
+        app: metis-engine-nextflow
+    spec:
+      serviceAccountName: nextflow
+      initContainers:
+        - name: wait-migrations
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until psql "postgres://postgres:password@postgres:5432/metis" \
+                -c "SELECT 1" > /dev/null 2>&1; do
+                echo "Waiting for migrations..."; sleep 3
+              done
+        - name: wait-nats
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - until nc -z nats 4222; do echo "Waiting for NATS..."; sleep 2; done
+      containers:
+        - name: metis-engine-nextflow
+          image: metis-engine-nextflow:local
+          imagePullPolicy: Never
+          env:
+            - name: DATABASE_URL
+              value: "postgres://postgres:password@postgres:5432/metis"
+            - name: REDIS_URL
+              value: "redis://:password@valkey:6379"
+            - name: NATS_URL
+              value: "nats://nats:nats@nats:4222"
+          volumeMounts:
+            - name: engine-config
+              mountPath: /etc/metis/engine-config.yaml
+              subPath: engine-config.yaml
+            - name: nextflow-config
+              mountPath: /root/.nextflow/config
+              subPath: config
+            - name: nextflow-scm
+              mountPath: /root/.nextflow/scm
+              subPath: scm
+            - name: workflows
+              mountPath: /root/workflows
+            - name: nextflow-work
+              mountPath: /workspace
+      volumes:
+        - name: engine-config
+          configMap:
+            name: engine-config
+        - name: nextflow-config
+          configMap:
+            name: nextflow-config
+        - name: nextflow-scm
+          secret:
+            secretName: nextflow-scm
+        - name: workflows
+          hostPath:
+            # minikube mounts macOS /Users at /Users inside the VM
+            path: /Users/jaeaeich/Desktop/app/metis/workflows
+            type: DirectoryOrCreate
+        - name: nextflow-work
+          persistentVolumeClaim:
+            claimName: nextflow-work
+
+# -----------------------------------------------------------------------------
+# Metis UI
+# -----------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metis-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metis-ui
+  template:
+    metadata:
+      labels:
+        app: metis-ui
+    spec:
+      initContainers:
+        - name: wait-api
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - until nc -z metis-api 8080; do echo "Waiting for API..."; sleep 2; done
+      containers:
+        - name: metis-ui
+          image: metis-ui:local
+          imagePullPolicy: Never
+          env:
+            - name: API_URL
+              value: "http://metis-api:8080/"
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metis-ui
+spec:
+  selector:
+    app: metis-ui
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+  type: NodePort

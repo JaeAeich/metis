@@ -24,6 +24,17 @@ docker-compose up -d
 
 Services have health checks and dependency ordering. The API and engine wait for migrations to complete before starting.
 
+### Example Workflows
+
+Two example workflows are bundled and mounted into the engine container at `/root/workflows`:
+
+| Workflow | `workflow_url` | Description |
+| -------- | -------------- | ----------- |
+| Hello World | `/root/workflows/hello/main.nf` | Minimal pipeline, prints a greeting |
+| Sleep | `/root/workflows/sleep/main.nf` | Sleeps for a configurable duration, useful for testing cancellation |
+
+Submit either with `workflow_engine_parameters: { "profile": "docker" }` and no `workflow_params` required.
+
 ### Environment Variables
 
 All variables have defaults. Override by setting them in the shell or a `.env` file.
@@ -79,7 +90,9 @@ Individual Dockerfiles:
 
 ---
 
-## Kubernetes
+## Kubernetes Example
+
+This example shows how to run Metis with Nextflow dispatching pipeline tasks as Kubernetes pods. Metis itself (API, engine, databases) runs as standard Kubernetes Deployments — Kubernetes is not required for Metis; Docker Compose is sufficient for most deployments.
 
 ### Quickstart (Minikube)
 
@@ -90,19 +103,19 @@ Individual Dockerfiles:
   bash deployment/scripts/build.sh
   ```
 
-2. Apply the service account (required for Nextflow k8s executor):
+1. Apply the service account (required for Nextflow k8s executor):
 
   ```bash
   kubectl apply -f configs/serviceaccount.yaml
   ```
 
-3. Apply the quickstart manifest:
+1. Apply the quickstart manifest:
 
   ```bash
   kubectl apply -f deployment/k8s/quickstart.yaml
   ```
 
-4. Access the UI:
+1. Access the UI:
 
   ```bash
   minikube service metis-ui
@@ -110,11 +123,27 @@ Individual Dockerfiles:
 
   Or via NodePort: `http://$(minikube ip):30080`
 
-5. Access the API:
+1. Access the API:
 
   ```bash
   kubectl port-forward svc/metis-api 8080:8080
   ```
+
+::: warning GitHub Rate Limits
+The quickstart manifest includes a `nextflow-scm` Secret with a `providers.github` block. Without a valid GitHub username and access token, Nextflow will hit anonymous rate limits when fetching pipelines from GitHub.
+
+Edit the Secret in `deployment/k8s/quickstart.yaml` before applying:
+
+```yaml
+providers {
+  github {
+    user  = 'your-github-username'
+    token = 'your-github-token'
+  }
+}
+```
+
+:::
 
 ### What's Included
 
@@ -139,9 +168,9 @@ When running Nextflow with the `k8s` profile, Nextflow spawns worker pods direct
   kubectl apply -f configs/serviceaccount.yaml
   ```
 
-2. A `ReadWriteMany` PVC for the Nextflow work directory — worker pods mount it directly.
+1. A `ReadWriteMany` PVC for the Nextflow work directory — worker pods mount it directly.
 
-3. The Nextflow config (embedded in the `nextflow-config` ConfigMap):
+1. The Nextflow config (embedded in the `nextflow-config` ConfigMap):
 
   ```groovy
   plugins {
@@ -162,7 +191,7 @@ When running Nextflow with the `k8s` profile, Nextflow spawns worker pods direct
   workDir = '/workspace/work'
   ```
 
-4. Submit runs with `"profile": "k8s"` in `workflow_engine_parameters`.
+1. Submit runs with `"profile": "k8s"` in `workflow_engine_parameters`.
 
 ### Production Notes
 

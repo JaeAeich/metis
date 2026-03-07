@@ -68,12 +68,13 @@ The execution layer. A single binary that:
 1. Subscribes to the `run.submit.<engine_name>` NATS topic
 2. Reads `engine.yaml` on startup to build its configuration
 3. On receiving a run message:
-  - Builds the CLI command from `commandTemplate`, substituting validated parameters
-  - Creates the working directory tree
-  - Spawns the workflow subprocess
-  - Captures stdout/stderr line-by-line and writes to `log_lines`
-  - Tracks state transitions and publishes them to NATS
-  - Registers the process PID in Valkey for cancellation
+
+- Builds the CLI command from `commandTemplate`, substituting validated parameters
+- Creates the working directory tree
+- Spawns the workflow subprocess
+- Captures stdout/stderr line-by-line and writes to `log_lines`
+- Tracks state transitions and publishes them to NATS
+- Registers the process PID in Valkey for cancellation
 
 Engines implement the `Engine` trait to provide engine-specific result parsing and task log extraction:
 

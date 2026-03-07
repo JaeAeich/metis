@@ -221,7 +221,7 @@ Denied params are evaluated against the raw keys sent by the client before alias
   metis-engine-generic server --engine-config /path/to/engine.yaml
   ```
 
-3. The engine registers its heartbeat in Valkey — it will appear in `GET /service-info`.
-4. Submit runs with `workflow_engine` matching `engine.name` in the config.
+1. The engine registers its heartbeat in Valkey — it will appear in `GET /service-info`.
+2. Submit runs with `workflow_engine` matching `engine.name` in the config.
 
 For engines requiring custom result parsing or task log extraction, implement the `Engine` trait in a new crate and compile a custom binary.

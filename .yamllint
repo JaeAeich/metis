@@ -7,7 +7,7 @@ rules:
   indentation:
     spaces: 2
     indent-sequences: true
-    check-multi-line-strings: true
+    check-multi-line-strings: false
   document-start: disable
   truthy:
     allowed-values: ["true", "false"]
