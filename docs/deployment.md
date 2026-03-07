@@ -1,8 +1,16 @@
 # Deployment
 
+::: warning Development Use Only
+These deployment examples are for development and testing — not production. Credentials are hardcoded,
+volumes are ephemeral, and no resource limits are set. Do not expose these configurations on a public network.
+:::
+
+---
+
 ## Docker Compose
 
-The default `docker-compose.yaml` runs the full Metis stack locally.
+The `docker-compose.yaml` is designed for **local workflow testing** — run local `.nf` files by mounting
+a workflow directory, or pull and run pipelines directly from GitHub. It is not intended for production use.
 
 ### Services
 
@@ -23,6 +31,10 @@ docker-compose up -d
 ```
 
 Services have health checks and dependency ordering. The API and engine wait for migrations to complete before starting.
+
+![Run list view](/list.png)
+
+![Submit run](/create.png)
 
 ### Example Workflows
 
@@ -92,7 +104,9 @@ Individual Dockerfiles:
 
 ## Kubernetes Example
 
-This example shows how to run Metis with Nextflow dispatching pipeline tasks as Kubernetes pods. Metis itself (API, engine, databases) runs as standard Kubernetes Deployments — Kubernetes is not required for Metis; Docker Compose is sufficient for most deployments.
+This example deploys Metis into Kubernetes specifically to use the **Nextflow Kubernetes executor** — where
+Nextflow dispatches each pipeline task as a pod inside the cluster. If you don't need the k8s executor,
+Docker Compose is sufficient.
 
 ### Quickstart (Minikube)
 
@@ -192,13 +206,3 @@ When running Nextflow with the `k8s` profile, Nextflow spawns worker pods direct
   ```
 
 1. Submit runs with `"profile": "k8s"` in `workflow_engine_parameters`.
-
-### Production Notes
-
-The quickstart manifest uses hardcoded passwords and `emptyDir` volumes. For production:
-
-- Replace `emptyDir` with persistent storage claims for PostgreSQL and MinIO
-- Use Kubernetes Secrets for all credentials rather than plaintext in ConfigMaps
-- Set resource limits on all containers
-- Consider running NATS in JetStream mode for durable message delivery
-- Use a proper ingress controller instead of NodePort services
