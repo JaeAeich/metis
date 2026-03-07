@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use common::configs::EngineConfig;
+use common::keys;
 use redis::AsyncCommands;
 use redis::aio::MultiplexedConnection;
 use tokio::sync::Mutex;
@@ -25,20 +26,15 @@ impl Valkey {
     }
 
     pub async fn am_i_new(&self) -> EngineResult<bool> {
-        let key = format!(
-            "metis.engines.config.{}.{}",
-            self.engine_config.name, self.engine_config.version
-        );
+        let key = keys::valkey_engine_config(&self.engine_config.name, &self.engine_config.version);
         let mut conn = self.conn.lock().await;
         let exists: bool = conn.exists(&key).await?;
         Ok(!exists)
     }
 
     pub async fn register(&self) -> EngineResult<()> {
-        let config_key = format!(
-            "metis.engines.config.{}.{}",
-            self.engine_config.name, self.engine_config.version
-        );
+        let config_key =
+            keys::valkey_engine_config(&self.engine_config.name, &self.engine_config.version);
         let config_json = serde_json::to_string(&*self.engine_config)?;
 
         let mut conn = self.conn.lock().await;
@@ -53,7 +49,7 @@ impl Valkey {
     pub async fn add_run(&self, run_id: &str) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
         // Direct reverse-index for O(1) engine lookup during cancel
-        let run_engine_index = format!("metis.runs.{}.engine", run_id);
+        let run_engine_index = keys::valkey_run_engine(run_id);
         let _: () = redis::cmd("SET")
             .arg(&run_engine_index)
             .arg(self.engine_config.id.to_string())
@@ -64,28 +60,28 @@ impl Valkey {
 
     pub async fn remove_run(&self, run_id: &str) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
-        let run_engine_index = format!("metis.runs.{}.engine", run_id);
+        let run_engine_index = keys::valkey_run_engine(run_id);
         let _: () = redis::cmd("DEL").arg(&run_engine_index).query_async(&mut *conn).await?;
         Ok(())
     }
 
     pub async fn store_run_pid(&self, run_id: &str, pid: u32) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
-        let key = format!("metis.runs.{}.pid", run_id);
+        let key = keys::valkey_run_pid(run_id);
         let _: () = conn.set(key, pid).await?;
         Ok(())
     }
 
     pub async fn get_run_pid(&self, run_id: &str) -> EngineResult<Option<u32>> {
         let mut conn = self.conn.lock().await;
-        let key = format!("metis.runs.{}.pid", run_id);
+        let key = keys::valkey_run_pid(run_id);
         let pid: Option<u32> = conn.get(key).await?;
         Ok(pid)
     }
 
     pub async fn remove_run_pid(&self, run_id: &str) -> EngineResult<()> {
         let mut conn = self.conn.lock().await;
-        let key = format!("metis.runs.{}.pid", run_id);
+        let key = keys::valkey_run_pid(run_id);
         let _: () = conn.del(key).await?;
         Ok(())
     }
@@ -164,7 +160,7 @@ async fn test_valkey_add_and_remove_run() -> EngineResult<()> {
     valkey.add_run(&run_id).await?;
 
     let mut conn = valkey.conn.lock().await;
-    let run_key = format!("metis.runs.{}.engine", run_id);
+    let run_key = keys::valkey_run_engine(&run_id);
     let run_data: String = conn.get(&run_key).await?;
     drop(conn);
 

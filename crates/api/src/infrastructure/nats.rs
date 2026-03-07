@@ -33,7 +33,7 @@ impl NatsPublisher {
     }
 
     pub async fn publish_cancel(&self, engine_id: &str, run_id: &str) -> Result<(), String> {
-        let topic = format!("metis.cancel.{}", engine_id);
+        let topic = common::keys::nats_cancel_subject(engine_id);
         let payload = serde_json::json!({ "run_id": run_id }).to_string().into_bytes();
         self.client
             .publish(topic, payload.into())
