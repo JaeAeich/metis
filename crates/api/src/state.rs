@@ -54,11 +54,8 @@ impl AppState {
             service_info: service_info_service,
         };
 
-        Ok(Self {
-            db,
-            services,
-            config: config.clone(),
-            boot_time: Arc::new(RwLock::new(None)),
-        })
+        let boot_time = Arc::new(RwLock::new(Some(Utc::now())));
+
+        Ok(Self { db, services, config: config.clone(), boot_time })
     }
 }

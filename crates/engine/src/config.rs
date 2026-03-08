@@ -3,6 +3,10 @@ use url::Url;
 
 use crate::error::{EngineError, EngineResult};
 
+fn default_health_port() -> u16 {
+    8080
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfig {
     pub database_url: Url,
@@ -10,6 +14,8 @@ pub struct ServerConfig {
     #[serde(default = "default_notification_subject")]
     pub nats_notification_subject: String,
     pub redis_url: Url,
+    #[serde(default = "default_health_port")]
+    pub health_port: u16,
 }
 
 fn default_notification_subject() -> String {
