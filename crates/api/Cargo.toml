@@ -24,11 +24,11 @@ sqlx = { features = [
   "runtime-tokio-rustls",
   "uuid",
 ], workspace = true }
+telemetry = { workspace = true }
 thiserror = "2.0.18"
 tokio = { features = [ "full" ], workspace = true }
 tokio-stream = "0.1.18"
 tower-http = { features = [ "cors", "trace" ], version = "0.6.8" }
-tracing-subscriber = { features = [ "env-filter", "json" ], workspace = true }
 url = "2.5.8"
 utoipa = { features = [ "axum_extras", "chrono", "uuid" ], workspace = true }
 utoipa-swagger-ui = { features = [ "axum" ], version = "9" }

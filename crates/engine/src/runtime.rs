@@ -8,8 +8,8 @@ use common::configs::FullEngineConfig;
 use common::models::{RunRequestMessage, RunSummary, State, TaskListResponse, ValidatedRunRequest};
 use futures::StreamExt;
 use serde::Deserialize;
+use telemetry::tracing::{self, Instrument, error, info, warn};
 use tokio::sync::RwLock;
-use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::clients::db::Stream;
@@ -76,6 +76,10 @@ impl EngineRuntime {
             dry_run,
             boot_time: Utc::now(),
         }
+    }
+
+    pub fn config(&self) -> &Arc<FullEngineConfig> {
+        &self.config
     }
 
     pub fn db(&self) -> Option<&Arc<Db>> {
@@ -198,7 +202,9 @@ impl EngineRuntime {
             valkey.add_run(&run_id.to_string()).await?;
         }
 
-        let run_result = self.run(run_id, run_message.user_id.clone(), run_message.request).await;
+        let run_result = self
+            .run(run_id, run_message.user_id.clone(), run_message.request, run_message.trace_id)
+            .await;
 
         if let Some(valkey) = &self.valkey {
             valkey.remove_run(&run_id.to_string()).await?;
@@ -221,7 +227,7 @@ impl EngineRuntime {
                     && let Err(db_err) =
                         db.finalize_run(&run_id.to_string(), State::SystemError, Utc::now()).await
                 {
-                    warn!(run_id = %run_id, error = %db_err, "Failed to record failed run in database");
+                    error!(run_id = %run_id, error = %db_err, "Failed to record failed run in database");
                 }
                 if let Some(nats) = &self.nats {
                     let event = serde_json::json!({
@@ -290,6 +296,38 @@ impl EngineRuntime {
         run_id: Uuid,
         user_id: String,
         req: ValidatedRunRequest,
+        trace_id: Option<String>,
+    ) -> Result<RunSummary, EngineError> {
+        let span = tracing::info_span!(
+            "workflow_run",
+            run_id = %run_id,
+            user_id = %user_id,
+            workflow_type = %req.workflow_type,
+            state = tracing::field::Empty,
+            duration_ms = tracing::field::Empty,
+            api_trace_id = tracing::field::Empty,
+            error = tracing::field::Empty,
+        );
+        if let Some(ref tid) = trace_id {
+            span.record("api_trace_id", tid.as_str());
+        }
+        async move {
+            let result = self.run_inner(run_id, user_id, req).await;
+            if let Err(ref e) = result {
+                tracing::Span::current().record("error", e.to_string().as_str());
+                error!(error = %e, "Workflow execution failed");
+            }
+            result
+        }
+        .instrument(span)
+        .await
+    }
+
+    async fn run_inner(
+        &self,
+        run_id: Uuid,
+        user_id: String,
+        req: ValidatedRunRequest,
     ) -> Result<RunSummary, EngineError> {
         let start_time = Instant::now();
         let started_at = Utc::now();
@@ -306,14 +344,6 @@ impl EngineRuntime {
             command: None,
         };
 
-        let span = tracing::info_span!(
-            "workflow_run",
-            run_id = %ctx.run_id,
-            workflow_type = %req.workflow_type,
-            state = tracing::field::Empty,
-            duration_ms = tracing::field::Empty,
-        );
-
         info!(
             run_id = %ctx.run_id,
             workflow_type = %req.workflow_type,
@@ -323,7 +353,7 @@ impl EngineRuntime {
         );
 
         // Step 1: Setup execution environment
-        span.record("state", "initializing");
+        tracing::Span::current().record("state", "initializing");
         WorkdirManager::setup(&ctx.workdir).await?;
 
         if let Some(db) = &self.db
@@ -334,7 +364,7 @@ impl EngineRuntime {
         }
 
         // Step 2: Build execution command
-        span.record("state", "building");
+        tracing::Span::current().record("state", "building");
         let build_context = self.create_build_context(&ctx).await?;
 
         let engine_params = self
@@ -389,7 +419,7 @@ impl EngineRuntime {
         }
 
         // Step 3: Execute workflow process
-        span.record("state", "executing");
+        tracing::Span::current().record("state", "executing");
         let child_process = ProcessExecutor::execute(&command_info).await?;
         let pid = child_process
             .id()
@@ -406,7 +436,7 @@ impl EngineRuntime {
         }
 
         // Step 4: Monitor execution (this blocks until completion or cancellation)
-        span.record("state", "running");
+        tracing::Span::current().record("state", "running");
         let line_callback: Arc<dyn Fn(Stream, u64, String) + Send + Sync + 'static> = {
             let db = self.db.clone();
             let run_id = ctx.run_id.to_string();
@@ -427,21 +457,21 @@ impl EngineRuntime {
         let is_cancelled = self.is_run_cancelled(&ctx.run_id).await;
 
         // Step 5: Parse results regardless of success/failure/cancellation
-        span.record("state", "parsing");
+        tracing::Span::current().record("state", "parsing");
         let (run_summary, run_log, task_logs) =
             self.parse_execution_results(&ctx, &exit_status, is_cancelled).await?;
 
         // Step 6: Update database with results
-        span.record("state", "updating_db");
+        tracing::Span::current().record("state", "updating_db");
         self.update_database(&ctx, &run_summary, &run_log, &task_logs).await?;
 
         // Step 7: Cleanup
-        span.record("state", "cleanup");
+        tracing::Span::current().record("state", "cleanup");
         self.cleanup_execution(&ctx).await?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
-        span.record("duration_ms", duration_ms);
-        span.record("state", format!("{:?}", run_summary.state).as_str());
+        tracing::Span::current().record("duration_ms", duration_ms);
+        tracing::Span::current().record("state", format!("{:?}", run_summary.state).as_str());
 
         info!(
             duration_ms = duration_ms,
@@ -454,29 +484,33 @@ impl EngineRuntime {
 
     /// Cancel a running workflow - FINAL, cannot be overridden
     pub async fn cancel(&self, run_id: &str) -> Result<(), EngineError> {
-        let _span = tracing::info_span!("workflow_cancel", run_id = %run_id);
-        info!(run_id = %run_id, "Cancelling workflow");
+        let span = tracing::info_span!("workflow_cancel", run_id = %run_id);
+        async move {
+            info!(run_id = %run_id, "Cancelling workflow");
 
-        if let Ok(parsed) = Uuid::parse_str(run_id) {
-            self.cancelled_runs.write().await.insert(parsed);
+            if let Ok(parsed) = Uuid::parse_str(run_id) {
+                self.cancelled_runs.write().await.insert(parsed);
+            }
+
+            let pid = match self.pid_store.get(run_id).await? {
+                Some(pid) => pid,
+                None => {
+                    warn!("No PID found for run_id, workflow may have already completed");
+                    return Ok(());
+                },
+            };
+
+            info!(pid = pid, "Found process to cancel");
+
+            // Send cancellation signal
+            ProcessExecutor::cancel(pid).await?;
+            self.pid_store.remove(run_id).await?;
+
+            info!("Workflow cancellation completed");
+            Ok(())
         }
-
-        let pid = match self.pid_store.get(run_id).await? {
-            Some(pid) => pid,
-            None => {
-                warn!("No PID found for run_id, workflow may have already completed");
-                return Ok(());
-            },
-        };
-
-        info!(pid = pid, "Found process to cancel");
-
-        // Send cancellation signal
-        ProcessExecutor::cancel(pid).await?;
-        self.pid_store.remove(run_id).await?;
-
-        info!("Workflow cancellation completed");
-        Ok(())
+        .instrument(span)
+        .await
     }
 
     async fn is_run_cancelled(&self, run_id: &Uuid) -> bool {
@@ -559,17 +593,17 @@ impl EngineRuntime {
         let end_time = Utc::now();
 
         if let Err(e) = db.finalize_run(&ctx.run_id.to_string(), state, end_time).await {
-            warn!(run_id = %ctx.run_id, error = %e, "Failed to finalize run in database");
+            error!(run_id = %ctx.run_id, error = %e, "Failed to finalize run in database");
         }
 
         if let Err(e) = db.insert_run_log(&ctx.run_id.to_string(), run_log).await {
-            warn!(run_id = %ctx.run_id, error = %e, "Failed to insert run log");
+            error!(run_id = %ctx.run_id, error = %e, "Failed to insert run log");
         }
 
         if let Some(tasks) = &task_logs.task_logs
             && let Err(e) = db.insert_task_logs(&ctx.run_id.to_string(), tasks).await
         {
-            warn!(run_id = %ctx.run_id, error = %e, "Failed to insert task logs");
+            error!(run_id = %ctx.run_id, error = %e, "Failed to insert task logs");
         }
 
         Ok(())

@@ -7,6 +7,7 @@ pub mod repositories;
 pub mod routes;
 pub mod services;
 pub mod state;
+pub mod tracing;
 
 pub use api::{ApiError, ApiResult};
 pub use config::Config;
