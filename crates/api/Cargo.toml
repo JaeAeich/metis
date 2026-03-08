@@ -36,6 +36,9 @@ uuid = { features = [ "serde", "v7" ], workspace = true }
 envy.workspace = true
 tracing.workspace = true
 
+[lints]
+workspace = true
+
 [package]
 edition = "2024"
 name = "metis-api"

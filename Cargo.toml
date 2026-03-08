@@ -22,3 +22,28 @@ tracing = "0.1.44"
 tracing-subscriber = { features = [ "env-filter", "json" ], version = "0.3.22" }
 utoipa = { features = [ "axum_extras", "chrono", "uuid" ], version = "5.4.0" }
 uuid = { features = [ "serde", "v7" ], version = "1.21.0" }
+
+[workspace.lints.clippy]
+all = "deny"
+clone_on_copy = "warn"
+complexity = "deny"
+correctness = "deny"
+dbg_macro = "deny"
+expect_used = "deny"
+large_enum_variant = "warn"
+large_stack_arrays = "warn"
+needless_collect = "warn"
+needless_pass_by_value = "warn"
+panic = "deny"
+pedantic = "warn"
+perf = "deny"
+redundant_clone = "warn"
+style = "warn"
+suspicious = "deny"
+unwrap_used = "deny"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_imports = "deny"
+unused_must_use = "deny"
+unused_variables = "warn"

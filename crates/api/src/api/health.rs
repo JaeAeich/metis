@@ -9,7 +9,11 @@ use crate::state::AppState;
     responses((status = 200, description = "Service is alive"))
 )]
 pub async fn healthz() -> impl IntoResponse {
-    (StatusCode::OK, serde_json::to_string(&json!({ "status": "ok" })).unwrap())
+    (
+        StatusCode::OK,
+        serde_json::to_string(&json!({ "status": "ok" }))
+            .unwrap_or_else(|_| r#"{"status":"error"}"#.to_string()),
+    )
 }
 
 #[utoipa::path(get, path = "/readyz", tag = "Health",

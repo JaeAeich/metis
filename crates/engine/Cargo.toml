@@ -25,6 +25,9 @@ tempfile = "3"
 name = "engine"
 path = "src/lib.rs"
 
+[lints]
+workspace = true
+
 [package]
 edition = "2024"
 name = "engine"
