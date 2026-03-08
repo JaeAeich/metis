@@ -15,6 +15,7 @@ pub mod dry_run;
 pub mod engine;
 pub mod error;
 pub mod execution;
+pub mod health;
 pub mod models;
 pub mod pid_store;
 pub mod runtime;

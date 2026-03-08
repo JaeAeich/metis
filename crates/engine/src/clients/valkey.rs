@@ -85,6 +85,11 @@ impl Valkey {
         let _: () = conn.del(key).await?;
         Ok(())
     }
+
+    pub async fn health_check(&self) -> bool {
+        let mut conn = self.conn.lock().await;
+        redis::cmd("PING").query_async::<String>(&mut *conn).await.is_ok()
+    }
 }
 
 #[tokio::test]

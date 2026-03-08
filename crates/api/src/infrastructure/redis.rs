@@ -53,7 +53,11 @@ impl RedisClient {
             .collect()
     }
 
-    /// SCAN all keys matching a pattern, releasing the lock between iterations.
+    pub async fn health_check(&self) -> bool {
+        let mut conn = self.conn.lock().await;
+        redis::cmd("PING").query_async::<String>(&mut *conn).await.is_ok()
+    }
+
     async fn scan_keys(&self, pattern: &str) -> Vec<String> {
         let mut all_keys = Vec::new();
         let mut cursor: u64 = 0;

@@ -3,16 +3,17 @@ use std::sync::Arc;
 use tokio::try_join;
 
 use crate::clients::{Db, Nats, Valkey};
-use crate::config::ServerConfig;
+use crate::config::{ServerConfig, load_engine_config};
 use crate::engine::Engine;
 use crate::error::EngineResult;
+use crate::health::start_health_server;
 use crate::runtime::EngineRuntime;
 
 pub async fn bootstrap<E>(engine: E) -> EngineResult<()>
 where
     E: Engine + 'static,
 {
-    let config = crate::config::load_engine_config().await?;
+    let config = load_engine_config().await?;
     let server_config = ServerConfig::from_env().map_err(|e| {
         crate::error::EngineError::Config(format!("Failed to load server config: {}", e))
     })?;
@@ -48,5 +49,13 @@ where
         Some(db),
         false,
     ));
+
+    let health_runtime = Arc::clone(&runtime);
+    tokio::spawn(async move {
+        if let Err(e) = start_health_server(Arc::new(server_config), health_runtime).await {
+            tracing::error!(error = %e, "Health server failed");
+        }
+    });
+
     runtime.start().await
 }

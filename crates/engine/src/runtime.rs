@@ -44,6 +44,7 @@ pub struct EngineRuntime {
     pid_store: PidStore,
     cancelled_runs: Arc<RwLock<HashSet<Uuid>>>,
     dry_run: bool,
+    boot_time: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,11 +74,34 @@ impl EngineRuntime {
             pid_store,
             cancelled_runs: Arc::new(RwLock::new(HashSet::new())),
             dry_run,
+            boot_time: Utc::now(),
         }
     }
 
     pub fn db(&self) -> Option<&Arc<Db>> {
         self.db.as_ref()
+    }
+
+    pub fn boot_time(&self) -> DateTime<Utc> {
+        self.boot_time
+    }
+
+    pub fn health_check_nats(&self) -> bool {
+        self.nats.as_ref().map(|n| n.health_check()).unwrap_or(false)
+    }
+
+    pub async fn health_check_redis(&self) -> bool {
+        match &self.valkey {
+            Some(v) => v.health_check().await,
+            None => false,
+        }
+    }
+
+    pub async fn health_check_db(&self) -> bool {
+        match &self.db {
+            Some(db) => db.health_check().await,
+            None => false,
+        }
     }
 
     pub async fn start(self: Arc<Self>) -> EngineResult<()> {

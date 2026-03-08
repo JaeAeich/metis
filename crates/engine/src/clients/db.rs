@@ -224,4 +224,8 @@ impl Db {
 
         Ok(())
     }
+
+    pub async fn health_check(&self) -> bool {
+        sqlx::query("SELECT 1").fetch_one(&self.pool).await.is_ok()
+    }
 }

@@ -92,4 +92,8 @@ impl Nats {
             .map_err(|e| EngineError::Network(e.to_string()))?;
         Ok(())
     }
+
+    pub fn health_check(&self) -> bool {
+        matches!(self.client.connection_state(), async_nats::connection::State::Connected)
+    }
 }

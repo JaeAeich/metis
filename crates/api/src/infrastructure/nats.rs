@@ -41,4 +41,8 @@ impl NatsPublisher {
             .map_err(|e| format!("NATS publish error: {}", e))?;
         Ok(())
     }
+
+    pub async fn health_check(&self) -> bool {
+        matches!(self.client.connection_state(), async_nats::connection::State::Connected)
+    }
 }

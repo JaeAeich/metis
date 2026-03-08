@@ -31,3 +31,9 @@ impl std::ops::Deref for Database {
         &self.pool
     }
 }
+
+impl Database {
+    pub async fn health_check(&self) -> bool {
+        sqlx::query("SELECT 1").fetch_one(&self.pool).await.is_ok()
+    }
+}

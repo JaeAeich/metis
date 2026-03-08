@@ -163,4 +163,8 @@ impl RunService {
     pub fn redis(&self) -> &Arc<RedisClient> {
         &self.redis
     }
+
+    pub fn nats(&self) -> &Arc<NatsPublisher> {
+        &self.nats
+    }
 }
