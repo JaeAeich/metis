@@ -19,6 +19,9 @@ use crate::api::logs::{LogLineListResponse, LogLineResponse};
         crate::api::tasks::get_task,
         crate::api::logs::list_log_lines,
         crate::api::logs::stream_log_lines,
+        crate::api::health::healthz,
+        crate::api::health::readyz,
+        crate::api::health::startupz,
     ),
     components(
         schemas(
@@ -52,6 +55,7 @@ use crate::api::logs::{LogLineListResponse, LogLineResponse};
         )
     ),
     tags(
+        (name = "Health", description = "Health check endpoints"),
         (name = "Service Info", description = "Service information endpoints"),
         (name = "Runs", description = "Workflow run management endpoints"),
     ),

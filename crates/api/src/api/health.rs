@@ -5,10 +5,16 @@ use serde_json::json;
 
 use crate::state::AppState;
 
+#[utoipa::path(get, path = "/healthz", tag = "Health",
+    responses((status = 200, description = "Service is alive"))
+)]
 pub async fn healthz() -> impl IntoResponse {
     (StatusCode::OK, serde_json::to_string(&json!({ "status": "ok" })).unwrap())
 }
 
+#[utoipa::path(get, path = "/readyz", tag = "Health",
+    responses((status = 200, description = "Service is ready"))
+)]
 pub async fn readyz(State(state): State<AppState>) -> impl IntoResponse {
     let boot_time = state.boot_time.read().await;
     let boot_time_str = boot_time
@@ -26,6 +32,12 @@ pub async fn readyz(State(state): State<AppState>) -> impl IntoResponse {
     )
 }
 
+#[utoipa::path(get, path = "/startupz", tag = "Health",
+    responses(
+        (status = 200, description = "All dependencies healthy"),
+        (status = 503, description = "One or more dependencies degraded"),
+    )
+)]
 pub async fn startupz(State(state): State<AppState>) -> impl IntoResponse {
     let redis_ok = state.services.runs.redis().health_check().await;
     let nats_ok = state.services.runs.nats().health_check().await;
