@@ -12,10 +12,7 @@ use crate::api::{
 use crate::state::AppState;
 
 pub fn get_router(app_state: AppState) -> Router {
-    Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
-        .route("/startupz", get(startupz))
+    let api_routes = Router::new()
         .route("/service-info", get(get_service_info))
         .route("/runs", get(list_runs).post(create_run))
         .route("/runs/{run_id}", get(get_run_log).delete(delete_run))
@@ -31,7 +28,13 @@ pub fn get_router(app_state: AppState) -> Router {
                 .make_span_with(tower_http::trace::DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(tower_http::trace::DefaultOnResponse::new().level(Level::INFO))
                 .on_failure(tower_http::trace::DefaultOnFailure::new().level(Level::ERROR)),
-        )
+        );
+
+    Router::new()
+        .route("/healthz", get(healthz))
+        .route("/readyz", get(readyz))
+        .route("/startupz", get(startupz))
+        .merge(api_routes)
         .layer(CorsLayer::permissive())
         .with_state(app_state)
 }
