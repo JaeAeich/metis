@@ -9,7 +9,11 @@ use crate::state::AppState;
     responses((status = 200, description = "Service is alive"))
 )]
 pub async fn healthz() -> impl IntoResponse {
-    (StatusCode::OK, serde_json::to_string(&json!({ "status": "ok" })).unwrap())
+    (
+        StatusCode::OK,
+        serde_json::to_string(&json!({ "status": "ok" }))
+            .unwrap_or_else(|_| r#"{"status":"error"}"#.to_string()),
+    )
 }
 
 #[utoipa::path(get, path = "/readyz", tag = "Health",
@@ -19,7 +23,7 @@ pub async fn readyz(State(state): State<AppState>) -> impl IntoResponse {
     let boot_time = state.boot_time.read().await;
     let boot_time_str = boot_time
         .as_ref()
-        .map(|t| t.to_rfc3339())
+        .map(chrono::DateTime::to_rfc3339)
         .unwrap_or_else(|| "unknown".to_string());
 
     (
@@ -28,7 +32,7 @@ pub async fn readyz(State(state): State<AppState>) -> impl IntoResponse {
             "status": "ok",
             "boot_time": boot_time_str
         }))
-        .unwrap(),
+        .unwrap_or_else(|_| r#"{"status":"error"}"#.to_string()),
     )
 }
 
@@ -60,6 +64,6 @@ pub async fn startupz(State(state): State<AppState>) -> impl IntoResponse {
                 "db": if db_ok { "ok" } else { "error" }
             }
         }))
-        .unwrap(),
+        .unwrap_or_else(|_| r#"{"status":"error"}"#.to_string()),
     )
 }

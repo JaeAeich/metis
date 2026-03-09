@@ -77,10 +77,10 @@ impl DryRunReport {
                 let value_str = p
                     .value
                     .as_ref()
-                    .map(|v| v.to_string())
+                    .map(std::string::ToString::to_string)
                     .unwrap_or_else(|| "(default)".to_string());
                 let sensitive = if p.spec.sensitive { " [SENSITIVE]" } else { "" };
-                let name = p.spec.names.first().map(|s| s.as_str()).unwrap_or("");
+                let name = p.spec.names.first().map(String::as_str).unwrap_or("");
                 println!("    {}: {}{}", name, value_str, sensitive);
             }
         }

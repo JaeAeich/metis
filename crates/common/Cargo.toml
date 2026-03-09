@@ -1,13 +1,16 @@
 [dependencies]
 envy = { workspace = true }
-regex = "1.12.3"
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
-thiserror = "2.0.18"
+thiserror = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
+
+[lints]
+workspace = true
 
 [package]
 edition = "2024"

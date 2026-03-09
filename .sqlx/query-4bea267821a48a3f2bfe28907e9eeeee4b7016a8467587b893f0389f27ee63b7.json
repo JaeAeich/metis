@@ -1,0 +1,84 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                task_id, run_id, name, cmd, start_time, end_time,\n                stdout, stderr, exit_code, system_logs, tes_uri\n            FROM task_logs\n            WHERE run_id = $1\n            ORDER BY id\n            LIMIT $2 OFFSET $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "task_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "run_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "cmd",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "start_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "end_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "stdout",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "stderr",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "exit_code",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "system_logs",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "tes_uri",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "4bea267821a48a3f2bfe28907e9eeeee4b7016a8467587b893f0389f27ee63b7"
+}

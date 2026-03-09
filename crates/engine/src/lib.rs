@@ -1,12 +1,3 @@
-#![deny(clippy::all)]
-#![deny(clippy::perf)]
-#![deny(clippy::complexity)]
-#![deny(clippy::unwrap_used)]
-#![deny(clippy::expect_used)]
-#![deny(clippy::panic)]
-#![deny(clippy::dbg_macro)]
-#![forbid(unsafe_code)]
-
 pub mod clients;
 pub mod command;
 pub mod config;

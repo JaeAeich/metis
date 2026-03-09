@@ -6,6 +6,9 @@ tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { features = [ "env-filter", "json" ], workspace = true }
 
+[lints]
+workspace = true
+
 [package]
 edition = "2024"
 name = "telemetry"

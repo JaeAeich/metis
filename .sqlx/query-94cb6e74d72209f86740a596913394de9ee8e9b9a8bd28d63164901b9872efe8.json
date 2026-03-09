@@ -1,0 +1,104 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT run_id, user_id, state, workflow_type, workflow_type_version,\n                workflow_url, workflow_engine, workflow_engine_version,\n                workflow_params, workflow_engine_parameters, tags,\n                start_time, end_time, created_at, deleted_at\n            FROM runs\n            WHERE state IN ('RUNNING', 'INITIALIZING') AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "run_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "state",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "workflow_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "workflow_type_version",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "workflow_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "workflow_engine",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "workflow_engine_version",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "workflow_params",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "workflow_engine_parameters",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "tags",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 11,
+        "name": "start_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "end_time",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "94cb6e74d72209f86740a596913394de9ee8e9b9a8bd28d63164901b9872efe8"
+}

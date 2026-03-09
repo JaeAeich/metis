@@ -34,8 +34,7 @@ impl ServiceInfoService {
                     .entry(wt.clone())
                     .or_insert_with(|| WorkflowTypeVersion { workflow_type_version: Some(vec![]) })
                     .workflow_type_version
-                    .as_mut()
-                    .unwrap()
+                    .get_or_insert_with(Vec::new)
                     .extend(config.workflow_type_versions.iter().cloned());
             }
 
@@ -43,8 +42,7 @@ impl ServiceInfoService {
                 .entry(config.name.clone())
                 .or_insert_with(|| WorkflowEngineVersion { workflow_engine_version: Some(vec![]) })
                 .workflow_engine_version
-                .as_mut()
-                .unwrap()
+                .get_or_insert_with(Vec::new)
                 .push(config.version.clone());
         }
 
