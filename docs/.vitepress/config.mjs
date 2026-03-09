@@ -39,6 +39,13 @@ export default withMermaid(
                         { text: "Architecture", link: "/architecture" },
                     ],
                 },
+                {
+                    text: "Dev",
+                    items: [
+                        { text: "Engine Internals", link: "/dev/engine" },
+                        { text: "Tracing", link: "/dev/tracing" },
+                    ],
+                },
             ],
             search: {
                 provider: "local",

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use common::models::{Log, State, TaskLog, ValidatedRunRequest};
 use sqlx::PgPool;
-use tracing::debug;
+use telemetry::tracing::debug;
 
 use crate::error::{EngineError, EngineResult};
 

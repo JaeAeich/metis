@@ -5,19 +5,12 @@ use chrono::Utc;
 use common::models::State;
 use metis_api::docs::docs;
 use metis_api::routes::get_router;
+use metis_api::tracing::init_tracing;
 use metis_api::{AppState, Config};
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    init_tracing();
 
     let config = Config::from_env()?;
     let state = AppState::new(&config).await?;
