@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
 use super::ServiceResult;
-use crate::repositories::{LogLine, LogRepository, LogStream, PaginatedResult, RunId};
+use crate::repositories::{LogLine, LogStream, PaginatedResult, RunId, SqlxLogRepository};
 
 #[derive(Clone)]
 pub struct LogService {
-    repo: Arc<dyn LogRepository>,
+    repo: Arc<SqlxLogRepository>,
 }
 
 impl LogService {
-    pub fn new(repo: Arc<dyn LogRepository>) -> Self {
+    pub fn new(repo: Arc<SqlxLogRepository>) -> Self {
         Self { repo }
     }
 

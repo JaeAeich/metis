@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT name, cmd, start_time::text as start_time, end_time::text as end_time, stdout, stderr, exit_code, system_logs FROM run_logs WHERE run_id = $1 ORDER BY id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "cmd",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 2,
+        "name": "start_time",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "end_time",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "stdout",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "stderr",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "exit_code",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "system_logs",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      null,
+      null,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "60678429f5d9d858bb0927c85b4184093be326beae1869e4a1dccf0938ebe0d2"
+}

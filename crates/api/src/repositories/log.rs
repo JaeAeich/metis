@@ -1,18 +1,6 @@
-use async_trait::async_trait;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 
 use super::{LogLine, LogStream, PaginatedResult, RepositoryResult, RunId};
-
-#[async_trait]
-pub trait LogRepository: Send + Sync {
-    async fn find_lines(
-        &self,
-        run_id: &RunId,
-        stream: Option<LogStream>,
-        after_seq: Option<i64>,
-        page_size: u32,
-    ) -> RepositoryResult<PaginatedResult<LogLine>>;
-}
 
 pub struct SqlxLogRepository {
     pool: PgPool,
@@ -24,9 +12,8 @@ impl SqlxLogRepository {
     }
 }
 
-#[async_trait]
-impl LogRepository for SqlxLogRepository {
-    async fn find_lines(
+impl SqlxLogRepository {
+    pub async fn find_lines(
         &self,
         run_id: &RunId,
         stream: Option<LogStream>,
@@ -34,8 +21,9 @@ impl LogRepository for SqlxLogRepository {
         page_size: u32,
     ) -> RepositoryResult<PaginatedResult<LogLine>> {
         let limit = page_size as i64 + 1;
+        let stream_str = stream.map(|s| s.to_string());
 
-        let rows = sqlx::query(
+        let rows = sqlx::query!(
             r#"
             SELECT run_id, stream, seq, line, written_at
             FROM log_lines
@@ -45,15 +33,24 @@ impl LogRepository for SqlxLogRepository {
             ORDER BY seq ASC
             LIMIT $4
             "#,
+            run_id.as_str(),
+            stream_str,
+            after_seq,
+            limit
         )
-        .bind(run_id.as_str())
-        .bind(stream.map(|s| s.to_string()))
-        .bind(after_seq)
-        .bind(limit)
         .fetch_all(&self.pool)
         .await?;
 
-        let lines: Vec<LogLine> = rows.into_iter().map(map_row_to_log_line).collect();
+        let lines: Vec<LogLine> = rows
+            .into_iter()
+            .map(|r| LogLine {
+                run_id: RunId::new(r.run_id),
+                stream: r.stream.parse().unwrap_or(LogStream::Stdout),
+                seq: r.seq,
+                line: r.line,
+                written_at: r.written_at,
+            })
+            .collect();
 
         let has_more = lines.len() > page_size as usize;
         let items: Vec<LogLine> = lines.into_iter().take(page_size as usize).collect();
@@ -65,23 +62,5 @@ impl LogRepository for SqlxLogRepository {
         };
 
         Ok(PaginatedResult { items, next_page_token })
-    }
-}
-
-fn map_row_to_log_line(row: sqlx::postgres::PgRow) -> LogLine {
-    LogLine {
-        run_id: RunId::new(row.get::<String, _>("run_id")),
-        stream: parse_stream(&row.get::<String, _>("stream")),
-        seq: row.get("seq"),
-        line: row.get("line"),
-        written_at: row.get("written_at"),
-    }
-}
-
-fn parse_stream(s: &str) -> LogStream {
-    match s {
-        "stdout" => LogStream::Stdout,
-        "stderr" => LogStream::Stderr,
-        _ => LogStream::Stdout,
     }
 }

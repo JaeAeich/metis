@@ -1,16 +1,9 @@
 # Engine Configuration
 
-Engine behaviour in Metis is entirely defined by `engine.yaml`. No code changes are required to add a new engine variant or adjust how parameters are handled.
-
-## What is an Engine?
-
-An engine is a combination of:
-
-1. A **binary** (`metis-engine-generic`) that handles NATS subscription, process execution, log capture, and state transitions
-2. A **config file** (`engine.yaml`) that defines how to build CLI commands, validate parameters, and lay out the working directory
-3. An optional **trait implementation** for engine-specific result parsing and task log extraction
-
-The generic binary reads `engine.yaml` at startup and handles the rest automatically.
+`engine.yaml` is the sole configuration surface for an engine — no code
+changes needed to add a new variant or adjust parameter handling.
+For the crate structure and how to build a custom engine binary,
+see [Engine Internals](/dev/engine).
 
 ## Starting an Engine
 
@@ -71,14 +64,7 @@ Denied params are evaluated against the raw keys sent by the client before alias
 
 ## Registering a New Engine
 
-1. Write an `engine.yaml` for the new engine.
-2. Start `metis-engine-generic`:
-
-  ```bash
-  metis-engine-generic server --engine-config /path/to/engine.yaml
-  ```
-
-1. The engine registers its heartbeat in Valkey — it will appear in `GET /service-info`.
-2. Submit runs with `workflow_engine` matching `engine.name` in the config.
-
-For engines requiring custom result parsing or task log extraction, implement the `Engine` trait in a new crate and compile a custom binary.
+The engine registers its heartbeat in Valkey and appears in GET /service-info.
+Submit runs using a `workflow_engine` that matches `engine.name`. For custom
+parsing or log handling, implement the Engine trait and build a custom binary.
+See [Engine Internals → Adding a Custom Engine](/dev/engine#adding-a-custom-engine).

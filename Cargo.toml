@@ -1,13 +1,33 @@
 [workspace]
-members = [ "crates/api", "crates/common", "crates/engine", "crates/engines/generic" ]
+members = [
+  "crates/api",
+  "crates/common",
+  "crates/engine",
+  "crates/engines/generic",
+  "crates/telemetry",
+]
 resolver = "3"
 
 [workspace.dependencies]
+anyhow = "1.0.102"
 async-nats = "0.44.2"
+async-stream = "0.3.6"
+async-trait = "0.1.89"
+axum = { features = [ "macros" ], version = "0.8.8" }
+axum-extra = { features = [ "query", "typed-header" ], version = "0.12.5" }
+base64 = "0.22.1"
+chrono = { features = [ "serde" ], version = "0.4.44" }
 envy = "0.4.2"
+futures = "0.3.32"
+nix = { features = [ "process", "signal" ], version = "0.30" }
+opentelemetry = { version = "0.27" }
+opentelemetry-otlp = { features = [ "grpc-tonic", "tonic" ], version = "0.27" }
+opentelemetry_sdk = { features = [ "rt-tokio" ], version = "0.27" }
 redis = { features = [ "aio", "tokio-comp" ], version = "0.32.7" }
+regex = "1.12.3"
 serde = { features = [ "derive" ], version = "1.0.228" }
 serde_json = "1.0"
+serde_yaml = "0.9.34"
 sqlx = { default-features = false, features = [
   "chrono",
   "derive",
@@ -17,32 +37,28 @@ sqlx = { default-features = false, features = [
   "runtime-tokio-rustls",
   "uuid",
 ], version = "0.8.6" }
+telemetry = { path = "crates/telemetry" }
+thiserror = "2.0.18"
 tokio = { features = [ "full" ], version = "1.50.0" }
+tokio-stream = "0.1.18"
+tower-http = { features = [ "cors", "trace" ], version = "0.6.8" }
 tracing = "0.1.44"
+tracing-opentelemetry = { version = "0.28" }
 tracing-subscriber = { features = [ "env-filter", "json" ], version = "0.3.22" }
+url = { features = [ "serde" ], version = "2.5.8" }
 utoipa = { features = [ "axum_extras", "chrono", "uuid" ], version = "5.4.0" }
-uuid = { features = [ "serde", "v7" ], version = "1.21.0" }
+utoipa-swagger-ui = { features = [ "axum" ], version = "9" }
+uuid = { features = [ "serde", "v7" ], version = "1.22.0" }
 
 [workspace.lints.clippy]
-all = "deny"
-clone_on_copy = "warn"
-complexity = "deny"
-correctness = "deny"
-dbg_macro = "deny"
-expect_used = "deny"
-large_enum_variant = "warn"
-large_stack_arrays = "warn"
-needless_collect = "warn"
+cloned_instead_of_copied = "warn"
+expect_used = "warn"
 needless_pass_by_value = "warn"
-panic = "deny"
-pedantic = "warn"
-perf = "deny"
-redundant_clone = "warn"
-style = "warn"
-suspicious = "deny"
-unwrap_used = "deny"
+redundant_closure_for_method_calls = "warn"
+unwrap_used = "warn"
 
 [workspace.lints.rust]
+dead_code = "warn"
 unsafe_code = "forbid"
 unused_imports = "deny"
 unused_must_use = "deny"

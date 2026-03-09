@@ -19,4 +19,5 @@ pub use error::{EngineError, EngineResult};
 pub use execution::{ExecutionOutput, ProcessExecutor};
 pub use pid_store::PidStore;
 pub use runtime::EngineRuntime;
+pub use telemetry::init_tracing;
 pub use workdir::{WorkdirManager, WorkdirPaths};

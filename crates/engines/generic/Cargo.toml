@@ -3,7 +3,7 @@ name = "metis-engine-generic"
 path = "src/main.rs"
 
 [dependencies]
-async-trait = "0.1"
+async-trait = { workspace = true }
 common = { path = "../../common" }
 engine = { path = "../../engine" }
 tokio = { workspace = true }

@@ -5,19 +5,19 @@ use common::validators::EngineRequestValidator;
 
 use super::ServiceResult;
 use crate::infrastructure::{NatsPublisher, RedisClient};
-use crate::repositories::{PaginatedResult, Pagination, Run, RunFilter, RunId, RunRepository};
+use crate::repositories::{PaginatedResult, Pagination, Run, RunFilter, RunId, SqlxRunRepository};
 use crate::services::ServiceError;
 
 #[derive(Clone)]
 pub struct RunService {
-    repo: Arc<dyn RunRepository>,
+    repo: Arc<SqlxRunRepository>,
     nats: Arc<NatsPublisher>,
     redis: Arc<RedisClient>,
 }
 
 impl RunService {
     pub fn with_messaging(
-        repo: Arc<dyn RunRepository>,
+        repo: Arc<SqlxRunRepository>,
         nats: Arc<NatsPublisher>,
         redis: Arc<RedisClient>,
     ) -> Self {
@@ -40,6 +40,10 @@ impl RunService {
         self.repo.find_all(filter, pagination).await.map_err(Into::into)
     }
 
+    #[tracing::instrument(
+        skip(self, req),
+        fields(run_id = %run_id, user_id = %user_id, workflow_type = %req.workflow_type, workflow_engine = %req.workflow_engine)
+    )]
     pub async fn create_run(
         &self,
         run_id: &str,
@@ -62,10 +66,12 @@ impl RunService {
         let validator = EngineRequestValidator::new(engine_config);
         let validated = validator.validate(req).map_err(ServiceError::Validation)?;
 
+        let trace_id = tracing::Span::current().id().map(|id| format!("{:x}", id.into_u64()));
         let message = RunRequestMessage {
             run_id: run_id.to_string(),
             request: validated,
             user_id: user_id.to_string(),
+            trace_id,
         };
 
         let topic = common::keys::nats_run_subject(
@@ -77,9 +83,19 @@ impl RunService {
 
         self.nats.publish_run(&topic, &message).await.map_err(ServiceError::Messaging)?;
 
+        tracing::info!(
+            run_id = %run_id,
+            user_id = %user_id,
+            workflow_type = %req.workflow_type,
+            workflow_engine = %req.workflow_engine,
+            nats_topic = %topic,
+            "Run created and dispatched"
+        );
+
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), fields(run_id = %id))]
     pub async fn request_cancel(&self, id: &RunId) -> ServiceResult<Option<String>> {
         loop {
             let run = self
@@ -93,6 +109,7 @@ impl RunService {
                     let updated =
                         self.repo.update_state_if(id, State::Queued, State::Canceled).await?;
                     if updated {
+                        tracing::info!(run_id = %id, "Queued run canceled immediately");
                         return Ok(None);
                     }
                 },
@@ -108,6 +125,12 @@ impl RunService {
                         .publish_cancel(&engine_id, id.as_str())
                         .await
                         .map_err(ServiceError::Messaging)?;
+
+                    tracing::info!(
+                        run_id = %id,
+                        engine_id = %engine_id,
+                        "Cancel signal dispatched to engine"
+                    );
 
                     return Ok(Some(engine_id));
                 },

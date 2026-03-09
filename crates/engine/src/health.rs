@@ -6,6 +6,7 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use serde_json::json;
+use telemetry::tracing;
 use tokio::net::TcpListener;
 
 use crate::config::ServerConfig;

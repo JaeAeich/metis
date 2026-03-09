@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use telemetry::tracing;
 use url::Url;
 
 use crate::error::{EngineError, EngineResult};

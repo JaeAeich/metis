@@ -4,14 +4,14 @@ path = "src/main.rs"
 
 [dependencies]
 async-nats = { workspace = true }
-async-stream = "0.3.6"
-async-trait = "0.1.89"
-axum = { features = [ "macros" ], version = "0.8.8" }
-axum-extra = { features = [ "query", "typed-header" ], version = "0.12.5" }
-base64 = "0.22.1"
-chrono = { features = [ "serde" ], version = "0.4.44" }
+async-stream = { workspace = true }
+axum = { workspace = true }
+axum-extra = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
 common = { path = "../common", version = "0.1.0" }
-futures = "0.3.32"
+envy = { workspace = true }
+futures = { workspace = true }
 redis = { workspace = true }
 serde = { features = [ "derive" ], workspace = true }
 serde_json = { workspace = true }
@@ -24,17 +24,16 @@ sqlx = { features = [
   "runtime-tokio-rustls",
   "uuid",
 ], workspace = true }
-thiserror = "2.0.18"
+telemetry = { workspace = true }
+thiserror = { workspace = true }
 tokio = { features = [ "full" ], workspace = true }
-tokio-stream = "0.1.18"
-tower-http = { features = [ "cors", "trace" ], version = "0.6.8" }
-tracing-subscriber = { features = [ "env-filter", "json" ], workspace = true }
-url = "2.5.8"
+tokio-stream = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
 utoipa = { features = [ "axum_extras", "chrono", "uuid" ], workspace = true }
-utoipa-swagger-ui = { features = [ "axum" ], version = "9" }
+utoipa-swagger-ui = { workspace = true }
 uuid = { features = [ "serde", "v7" ], workspace = true }
-envy.workspace = true
-tracing.workspace = true
 
 [lints]
 workspace = true

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE runs SET state = $1, end_time = NOW() WHERE run_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fc0689e4be675f32b9b4d16fa803edc0b21fe10578581610031eb00b53e39fdd"
+}

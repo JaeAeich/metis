@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use chrono::Utc;
 use common::configs::FullEngineConfig;
-use tracing::error;
+use telemetry::tracing::error;
 
 use crate::error::{EngineError, EngineResult};
 use crate::models::BuildContext;

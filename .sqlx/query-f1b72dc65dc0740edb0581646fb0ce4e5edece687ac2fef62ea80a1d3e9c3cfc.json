@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT run_id, stream, seq, line, written_at\n            FROM log_lines\n            WHERE run_id = $1\n            AND ($2::text IS NULL OR stream = $2)\n            AND ($3::bigint IS NULL OR seq > $3)\n            ORDER BY seq ASC\n            LIMIT $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "run_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "stream",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "seq",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "line",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "written_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f1b72dc65dc0740edb0581646fb0ce4e5edece687ac2fef62ea80a1d3e9c3cfc"
+}

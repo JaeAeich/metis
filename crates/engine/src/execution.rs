@@ -1,9 +1,9 @@
 use std::process::ExitStatus;
 use std::sync::Arc;
 
+use telemetry::tracing::{debug, info, warn};
 use tokio::io::AsyncBufReadExt;
 use tokio::process::{Child, Command};
-use tracing::{debug, info, warn};
 
 use crate::clients::db::Stream;
 use crate::error::{EngineError, EngineResult};

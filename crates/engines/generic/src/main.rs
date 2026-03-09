@@ -26,5 +26,5 @@ impl Engine for GenericEngine {
 #[tokio::main]
 async fn main() -> EngineResult<()> {
     let engine = GenericEngine;
-    server::bootstrap(engine).await
+    server::bootstrap(engine, "metis-engine-generic").await
 }

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use telemetry::init_tracing;
+use telemetry::tracing::{self, info};
 use tokio::try_join;
 
 use crate::clients::{Db, Nats, Valkey};
@@ -9,10 +11,11 @@ use crate::error::EngineResult;
 use crate::health::start_health_server;
 use crate::runtime::EngineRuntime;
 
-pub async fn bootstrap<E>(engine: E) -> EngineResult<()>
+pub async fn bootstrap<E>(engine: E, name: &'static str) -> EngineResult<()>
 where
     E: Engine + 'static,
 {
+    init_tracing(name);
     let config = load_engine_config().await?;
     let server_config = ServerConfig::from_env().map_err(|e| {
         crate::error::EngineError::Config(format!("Failed to load server config: {}", e))
@@ -49,6 +52,14 @@ where
         Some(db),
         false,
     ));
+
+    info!(
+        engine_id = %runtime.config().engine.id,
+        engine_name = %runtime.config().engine.name,
+        engine_version = %runtime.config().engine.version,
+        health_port = server_config.health_port,
+        "Engine starting up"
+    );
 
     let health_runtime = Arc::clone(&runtime);
     tokio::spawn(async move {

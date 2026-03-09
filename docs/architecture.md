@@ -170,13 +170,4 @@ Terminal states: `COMPLETE`, `EXECUTOR_ERROR`, `CANCELED`, `SYSTEM_ERROR`
 
 ## Crate Structure
 
-| Crate | Purpose |
-| ----- | ------- |
-| `api` | Axum HTTP server, route handlers, request validation |
-| `engine` | `Engine` trait definition, shared runtime (NATS subscription, process execution, log capture) |
-| `engine-nextflow` | Nextflow-specific `Engine` impl — result parsing, task log extraction |
-| `db` | SQLx models and query functions for PostgreSQL |
-| `config` | `engine.yaml` deserialization and validation logic |
-| `types` | Shared domain types (RunState, RunId, etc.) |
-
-The `engine` crate contains all execution plumbing. New engine implementations live in their own crate and only need to provide the trait methods.
+See [Engine Internals](/dev/engine) for the crate breakdown and how to add a custom engine.

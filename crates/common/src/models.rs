@@ -965,4 +965,5 @@ pub struct RunRequestMessage {
     pub run_id: String,
     pub request: ValidatedRunRequest,
     pub user_id: String,
+    pub trace_id: Option<String>,
 }

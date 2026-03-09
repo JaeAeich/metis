@@ -3,8 +3,12 @@
 Metis closely follows the [GA4GH WES 1.1.0](https://ga4gh.github.io/workflow-execution-service-schemas/) standard,
 extending it with SSE streaming, log pagination, and soft-delete.
 
-The interactive API docs are available at `http://<host>:<port>/docs` when the API is running.
-All request and response schemas are documented there.
+:::info live documentation
+Interactive API documentation is available at `http://<host>:<port>/docs`
+when the API is running. It contains the complete and most up-to-date
+request and response schemas. This page is provided for reference only
+and may lag behind the live documentation.
+:::
 
 ## Base URL
 

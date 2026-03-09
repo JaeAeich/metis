@@ -1,21 +1,22 @@
 [dependencies]
-anyhow = "1.0.102"
+anyhow = { workspace = true }
 async-nats = { workspace = true }
-async-trait = "0.1.89"
-axum = { version = "0.8.8" }
-chrono = { features = [ "serde" ], version = "0.4.44" }
+async-trait = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
 common = { path = "../common" }
-envy = "0.4"
-futures = "0.3.32"
-nix = { features = [ "process", "signal" ], version = "0.30" }
+envy = { workspace = true }
+futures = { workspace = true }
+nix = { workspace = true }
 redis = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = "0.9.34"
+serde_yaml = { workspace = true }
 sqlx = { workspace = true }
+telemetry = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-url = { features = [ "serde" ], version = "2.5.8" }
+url = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]

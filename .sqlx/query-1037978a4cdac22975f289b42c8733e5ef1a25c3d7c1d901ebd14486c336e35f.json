@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE runs SET state = $1 WHERE run_id = $2 AND state = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1037978a4cdac22975f289b42c8733e5ef1a25c3d7c1d901ebd14486c336e35f"
+}

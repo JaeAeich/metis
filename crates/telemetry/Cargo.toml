@@ -1,0 +1,15 @@
+[dependencies]
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+tracing = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+tracing-subscriber = { features = [ "env-filter", "json" ], workspace = true }
+
+[lints]
+workspace = true
+
+[package]
+edition = "2024"
+name = "telemetry"
+version = "0.1.0"
