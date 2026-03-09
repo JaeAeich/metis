@@ -1,20 +1,9 @@
-use async_trait::async_trait;
 use sqlx::{PgPool, Row};
 
 use super::{
     PaginatedResult, Pagination, RepositoryResult, RunId, Task, TaskId, calculate_next_token,
     pagination_offset,
 };
-
-#[async_trait]
-pub trait TaskRepository: Send + Sync {
-    async fn find_by_id(&self, run_id: &RunId, task_id: &TaskId) -> RepositoryResult<Option<Task>>;
-    async fn find_by_run(
-        &self,
-        run_id: &RunId,
-        pagination: Pagination,
-    ) -> RepositoryResult<PaginatedResult<Task>>;
-}
 
 pub struct SqlxTaskRepository {
     pool: PgPool,
@@ -26,9 +15,12 @@ impl SqlxTaskRepository {
     }
 }
 
-#[async_trait]
-impl TaskRepository for SqlxTaskRepository {
-    async fn find_by_id(&self, run_id: &RunId, task_id: &TaskId) -> RepositoryResult<Option<Task>> {
+impl SqlxTaskRepository {
+    pub async fn find_by_id(
+        &self,
+        run_id: &RunId,
+        task_id: &TaskId,
+    ) -> RepositoryResult<Option<Task>> {
         let row = sqlx::query(
             r#"
             SELECT
@@ -46,7 +38,7 @@ impl TaskRepository for SqlxTaskRepository {
         Ok(row.map(map_row_to_task))
     }
 
-    async fn find_by_run(
+    pub async fn find_by_run(
         &self,
         run_id: &RunId,
         pagination: Pagination,
