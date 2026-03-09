@@ -15,6 +15,8 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
+COPY .sqlx ./.sqlx
+ENV SQLX_OFFLINE=true
 RUN cargo build --release --bin metis-api
 
 FROM alpine:3.21
