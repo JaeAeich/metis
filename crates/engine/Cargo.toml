@@ -15,6 +15,7 @@ serde_yaml = "0.9.34"
 sqlx = { workspace = true }
 telemetry = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
 url = { features = [ "serde" ], version = "2.5.8" }
 uuid = { workspace = true }
 

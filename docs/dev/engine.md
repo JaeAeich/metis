@@ -12,7 +12,7 @@
 
 ## Engine Trait
 
-New engines implement two methods:
+New engines implement the following methods:
 
 ```rust
 pub trait Engine: Send + Sync {
