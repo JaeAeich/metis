@@ -1,39 +1,10 @@
 use std::collections::HashMap;
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use common::models::RunRequest;
 use sqlx::{PgPool, Row};
 
 use super::{RepositoryResult, Run, RunId, State, calculate_next_token, pagination_offset};
-
-#[async_trait]
-pub trait RunRepository: Send + Sync {
-    async fn find_by_id(&self, id: &RunId) -> RepositoryResult<Option<Run>>;
-    async fn find_all(
-        &self,
-        filter: RunFilter,
-        pagination: Pagination,
-    ) -> RepositoryResult<PaginatedResult<Run>>;
-    async fn count_by_state(&self) -> RepositoryResult<HashMap<String, i64>>;
-    async fn insert_run(
-        &self,
-        run_id: &str,
-        user_id: &str,
-        req: &RunRequest,
-    ) -> RepositoryResult<()>;
-    async fn update_state(&self, id: &RunId, state: State) -> RepositoryResult<()>;
-    async fn update_state_if(
-        &self,
-        id: &RunId,
-        expected: State,
-        new: State,
-    ) -> RepositoryResult<bool>;
-    async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>>;
-    async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()>;
-    async fn soft_delete(&self, id: &RunId) -> RepositoryResult<bool>;
-    async fn find_run_log(&self, run_id: &RunId) -> RepositoryResult<Option<common::models::Log>>;
-}
 
 pub struct SqlxRunRepository {
     pool: PgPool,
@@ -43,11 +14,8 @@ impl SqlxRunRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
 
-#[async_trait]
-impl RunRepository for SqlxRunRepository {
-    async fn find_by_id(&self, id: &RunId) -> RepositoryResult<Option<Run>> {
+    pub async fn find_by_id(&self, id: &RunId) -> RepositoryResult<Option<Run>> {
         let row = sqlx::query(
             "SELECT run_id, user_id, state, workflow_type, workflow_type_version, \
             workflow_url, workflow_engine, workflow_engine_version, \
@@ -62,7 +30,7 @@ impl RunRepository for SqlxRunRepository {
         Ok(row.map(map_row_to_run))
     }
 
-    async fn find_all(
+    pub async fn find_all(
         &self,
         filter: RunFilter,
         pagination: Pagination,
@@ -135,7 +103,7 @@ impl RunRepository for SqlxRunRepository {
         Ok(calculate_next_token(runs, pagination.page_size, offset))
     }
 
-    async fn count_by_state(&self) -> RepositoryResult<HashMap<String, i64>> {
+    pub async fn count_by_state(&self) -> RepositoryResult<HashMap<String, i64>> {
         let rows = sqlx::query(
             "SELECT state, COUNT(*) as count FROM runs WHERE deleted_at IS NULL GROUP BY state",
         )
@@ -148,7 +116,7 @@ impl RunRepository for SqlxRunRepository {
             .collect())
     }
 
-    async fn insert_run(
+    pub async fn insert_run(
         &self,
         run_id: &str,
         user_id: &str,
@@ -191,7 +159,7 @@ impl RunRepository for SqlxRunRepository {
         Ok(())
     }
 
-    async fn update_state(&self, id: &RunId, state: State) -> RepositoryResult<()> {
+    pub async fn update_state(&self, id: &RunId, state: State) -> RepositoryResult<()> {
         sqlx::query("UPDATE runs SET state = $1 WHERE run_id = $2")
             .bind(state.to_string())
             .bind(id.as_str())
@@ -200,7 +168,7 @@ impl RunRepository for SqlxRunRepository {
         Ok(())
     }
 
-    async fn update_state_if(
+    pub async fn update_state_if(
         &self,
         id: &RunId,
         expected: State,
@@ -215,7 +183,7 @@ impl RunRepository for SqlxRunRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>> {
+    pub async fn find_active_runs(&self) -> RepositoryResult<Vec<Run>> {
         let rows = sqlx::query(
             r#"
             SELECT run_id, user_id, state, workflow_type, workflow_type_version,
@@ -232,7 +200,7 @@ impl RunRepository for SqlxRunRepository {
         Ok(rows.into_iter().map(map_row_to_run).collect())
     }
 
-    async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()> {
+    pub async fn finalize_orphaned_run(&self, id: &RunId, state: State) -> RepositoryResult<()> {
         sqlx::query("UPDATE runs SET state = $1, end_time = NOW() WHERE run_id = $2")
             .bind(state.to_string())
             .bind(id.as_str())
@@ -241,7 +209,7 @@ impl RunRepository for SqlxRunRepository {
         Ok(())
     }
 
-    async fn soft_delete(&self, id: &RunId) -> RepositoryResult<bool> {
+    pub async fn soft_delete(&self, id: &RunId) -> RepositoryResult<bool> {
         let result = sqlx::query(
             "UPDATE runs SET deleted_at = NOW() WHERE run_id = $1 AND deleted_at IS NULL",
         )
@@ -251,7 +219,10 @@ impl RunRepository for SqlxRunRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn find_run_log(&self, run_id: &RunId) -> RepositoryResult<Option<common::models::Log>> {
+    pub async fn find_run_log(
+        &self,
+        run_id: &RunId,
+    ) -> RepositoryResult<Option<common::models::Log>> {
         let row = sqlx::query(
             "SELECT name, cmd, start_time::text as start_time, end_time::text as end_time, \
             stdout, stderr, exit_code, system_logs \

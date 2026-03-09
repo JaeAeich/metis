@@ -5,17 +5,17 @@ use common::models::{EngineInfo, ServiceInfo, WorkflowEngineVersion, WorkflowTyp
 use super::ServiceResult;
 use crate::config::Config;
 use crate::infrastructure::RedisClient;
-use crate::repositories::RunRepository;
+use crate::repositories::SqlxRunRepository;
 
 #[derive(Clone)]
 pub struct ServiceInfoService {
-    repo: Arc<dyn RunRepository>,
+    repo: Arc<SqlxRunRepository>,
     redis: Arc<RedisClient>,
     config: Config,
 }
 
 impl ServiceInfoService {
-    pub fn new(repo: Arc<dyn RunRepository>, redis: Arc<RedisClient>, config: Config) -> Self {
+    pub fn new(repo: Arc<SqlxRunRepository>, redis: Arc<RedisClient>, config: Config) -> Self {
         Self { repo, redis, config }
     }
 

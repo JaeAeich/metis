@@ -5,19 +5,19 @@ use common::validators::EngineRequestValidator;
 
 use super::ServiceResult;
 use crate::infrastructure::{NatsPublisher, RedisClient};
-use crate::repositories::{PaginatedResult, Pagination, Run, RunFilter, RunId, RunRepository};
+use crate::repositories::{PaginatedResult, Pagination, Run, RunFilter, RunId, SqlxRunRepository};
 use crate::services::ServiceError;
 
 #[derive(Clone)]
 pub struct RunService {
-    repo: Arc<dyn RunRepository>,
+    repo: Arc<SqlxRunRepository>,
     nats: Arc<NatsPublisher>,
     redis: Arc<RedisClient>,
 }
 
 impl RunService {
     pub fn with_messaging(
-        repo: Arc<dyn RunRepository>,
+        repo: Arc<SqlxRunRepository>,
         nats: Arc<NatsPublisher>,
         redis: Arc<RedisClient>,
     ) -> Self {

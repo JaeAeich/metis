@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
 use super::ServiceResult;
-use crate::repositories::{PaginatedResult, Pagination, RunId, Task, TaskId, TaskRepository};
+use crate::repositories::{PaginatedResult, Pagination, RunId, SqlxTaskRepository, Task, TaskId};
 
 #[derive(Clone)]
 pub struct TaskService {
-    repo: Arc<dyn TaskRepository>,
+    repo: Arc<SqlxTaskRepository>,
 }
 
 impl TaskService {
-    pub fn new(repo: Arc<dyn TaskRepository>) -> Self {
+    pub fn new(repo: Arc<SqlxTaskRepository>) -> Self {
         Self { repo }
     }
 

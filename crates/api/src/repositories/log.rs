@@ -1,18 +1,6 @@
-use async_trait::async_trait;
 use sqlx::{PgPool, Row};
 
 use super::{LogLine, LogStream, PaginatedResult, RepositoryResult, RunId};
-
-#[async_trait]
-pub trait LogRepository: Send + Sync {
-    async fn find_lines(
-        &self,
-        run_id: &RunId,
-        stream: Option<LogStream>,
-        after_seq: Option<i64>,
-        page_size: u32,
-    ) -> RepositoryResult<PaginatedResult<LogLine>>;
-}
 
 pub struct SqlxLogRepository {
     pool: PgPool,
@@ -24,9 +12,8 @@ impl SqlxLogRepository {
     }
 }
 
-#[async_trait]
-impl LogRepository for SqlxLogRepository {
-    async fn find_lines(
+impl SqlxLogRepository {
+    pub async fn find_lines(
         &self,
         run_id: &RunId,
         stream: Option<LogStream>,
